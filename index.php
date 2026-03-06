@@ -150,6 +150,7 @@
     <div class="hero-ctas">
       <a href="#projects" class="btn-primary">View Projects →</a>
       <a id="cta-github" href="#" target="_blank" class="btn-secondary">GitHub Profile</a>
+      <a href="/assets/Cynthia_Brown_Resume.pdf" download="Cynthia_Brown_Resume.pdf" class="btn-secondary">⬇ Resume</a>
     </div>
     <div class="hero-stats">
       <div><div class="stat-num" id="stat-projects">—</div><div class="stat-label">Projects Shipped</div></div>
