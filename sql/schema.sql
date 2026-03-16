@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS projects (
     tags        VARCHAR(512),
     github_url  VARCHAR(512),
     demo_url    VARCHAR(512),
+    image_url   VARCHAR(512),
     status      ENUM('active','wip','archived') DEFAULT 'active',
     sort_order  INT DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -70,3 +71,5 @@ INSERT INTO projects (title, description, language, tags, github_url, demo_url, 
   ('Project Alpha', 'A high-performance REST API with real-time capabilities built on Node.js and PostgreSQL.', 'TypeScript', 'Node.js,PostgreSQL,REST', 'https://github.com', '', 'active', 1),
   ('DataSync CLI', 'Command-line tool for bidirectional database sync across environments with conflict resolution.', 'Go', 'CLI,Database,DevOps', 'https://github.com', '', 'active', 2),
   ('ReactFlow UI', 'Component library of 40+ accessible, animated React components with Storybook documentation.', 'JavaScript', 'React,Storybook,A11y', 'https://github.com', 'https://example.com', 'active', 3);
+-- Migration for existing installs:
+-- ALTER TABLE projects ADD COLUMN image_url VARCHAR(512) NULL AFTER demo_url;

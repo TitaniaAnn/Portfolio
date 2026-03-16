@@ -38,14 +38,15 @@ if ($method === 'POST') {
     $tags      = implode(',', array_map('trim', (array)($b['tags'] ?? [])));
     $github    = trim($b['github_url'] ?? '');
     $demo      = trim($b['demo_url']   ?? '');
+    $image     = trim($b['image_url']  ?? '');
     $status    = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
     $sort      = (int)($b['sort_order'] ?? 0);
 
     $stmt = db()->prepare('
-        INSERT INTO projects (title, description, language, tags, github_url, demo_url, status, sort_order)
-        VALUES (?,?,?,?,?,?,?,?)
+        INSERT INTO projects (title, description, language, tags, github_url, demo_url, image_url, status, sort_order)
+        VALUES (?,?,?,?,?,?,?,?,?)
     ');
-    $stmt->execute([$title, $desc, $lang, $tags, $github, $demo, $status, $sort]);
+    $stmt->execute([$title, $desc, $lang, $tags, $github, $demo, $image, $status, $sort]);
     $newId = db()->lastInsertId();
 
     $row = db()->query("SELECT * FROM projects WHERE id = $newId")->fetch();
@@ -61,7 +62,7 @@ if ($method === 'PUT') {
     $fields = [];
     $params = [];
 
-    $allowed = ['title','description','language','github_url','demo_url','status','sort_order'];
+    $allowed = ['title','description','language','github_url','demo_url','image_url','status','sort_order'];
     foreach ($allowed as $f) {
         if (array_key_exists($f, $b)) {
             $fields[] = "`$f` = ?";
