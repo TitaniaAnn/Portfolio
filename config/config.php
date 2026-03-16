@@ -12,7 +12,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 // ── App ─────────────────────────────────────────────────────
 define('APP_URL',    'https://cynthia-brown.com');   // No trailing slash
-qdefine('APP_SECRET', 'openssl rand -hex 32');  // openssl rand -hex 32
+define('APP_SECRET', '');  // paste output of: openssl rand -hex 32
 
 // ── Session ──────────────────────────────────────────────────
 define('SESSION_LIFETIME', 60 * 60 * 8);  // 8 hours in seconds

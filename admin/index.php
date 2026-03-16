@@ -368,7 +368,7 @@ function renderTable(projects) {
       </td>
       <td>
         <div class="tbl-actions">
-          <button class="tbl-btn edit" onclick='openEdit(${JSON.stringify(p)})'>Edit</button>
+          <button class="tbl-btn edit" onclick="openEdit(${p.id})">Edit</button>
           <button class="tbl-btn del"  onclick="deleteProject(${p.id})">Delete</button>
         </div>
       </td>
@@ -427,7 +427,9 @@ async function deleteProject(id) {
 }
 
 // ── Edit modal ───────────────────────────────────────────────
-function openEdit(p) {
+function openEdit(id) {
+  const p = allProjects.find(proj => proj.id === id);
+  if (!p) return;
   document.getElementById('edit-id').value      = p.id;
   document.getElementById('edit-title').value   = p.title;
   document.getElementById('edit-desc').value    = p.description;
