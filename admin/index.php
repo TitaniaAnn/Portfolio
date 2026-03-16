@@ -111,13 +111,16 @@ if (!$admin) {
   .modal-close:hover{color:var(--red)}
   .modal-body{padding:1.5rem}
 
-  /* IMAGE UPLOAD */
-  .img-upload-area{border:1px dashed var(--border);padding:1rem;cursor:pointer;transition:border-color 0.2s;text-align:center;position:relative}
+  /* IMAGE GALLERY */
+  .img-gallery{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;min-height:0}
+  .img-thumb{position:relative;width:90px;height:70px;flex-shrink:0}
+  .img-thumb img{width:100%;height:100%;object-fit:cover;border:1px solid var(--border);display:block}
+  .img-thumb-del{position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.75);border:none;color:var(--red);font-size:0.6rem;cursor:pointer;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);line-height:1}
+  .img-thumb-del:hover{background:var(--red);color:#fff}
+  .img-upload-area{border:1px dashed var(--border);padding:0.8rem;cursor:pointer;transition:border-color 0.2s;text-align:center;position:relative}
   .img-upload-area:hover{border-color:var(--amber-dim)}
   .img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
   .img-upload-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.08em}
-  .img-preview{width:100%;max-height:140px;object-fit:cover;display:block;margin-top:0.6rem;border:1px solid var(--border)}
-  .img-remove{background:none;border:none;color:var(--red);font-family:var(--mono);font-size:0.6rem;cursor:pointer;margin-top:0.4rem;letter-spacing:0.08em;text-transform:uppercase}
   .img-uploading{font-size:0.65rem;color:var(--amber);margin-top:0.4rem}
 </style>
 </head>
@@ -234,14 +237,12 @@ if (!$admin) {
           <div class="hint">Lower = appears first</div>
         </div>
         <div class="form-group full">
-          <label>Project Image</label>
-          <div class="img-upload-area" id="ap-img-area">
-            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewImage(this,'ap-img-preview','ap-img-url')">
-            <div class="img-upload-label">Click to upload an image (jpg, png, gif, webp — max 5 MB)</div>
+          <label>Project Images</label>
+          <div class="img-gallery" id="ap-img-gallery"></div>
+          <div class="img-upload-area">
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'ap')">
+            <div class="img-upload-label">＋ Add images — jpg, png, gif, webp, max 5 MB each</div>
           </div>
-          <img id="ap-img-preview" class="img-preview" style="display:none" src="" alt="Preview">
-          <button type="button" id="ap-img-remove" class="img-remove" style="display:none" onclick="removeImage('ap-img-preview','ap-img-url','ap-img-remove','ap-img-area')">✕ Remove image</button>
-          <input type="hidden" id="ap-img-url">
           <div id="ap-img-status" class="img-uploading" style="display:none">Uploading...</div>
         </div>
       </div>
@@ -329,14 +330,12 @@ if (!$admin) {
         <div class="form-group"><label>Tags</label><input type="text" id="edit-tags"><div class="hint">Comma-separated</div></div>
         <div class="form-group"><label>Sort Order</label><input type="text" id="edit-sort"></div>
         <div class="form-group full">
-          <label>Project Image</label>
-          <div class="img-upload-area" id="edit-img-area">
-            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewImage(this,'edit-img-preview','edit-img-url')">
-            <div class="img-upload-label">Click to replace image (jpg, png, gif, webp — max 5 MB)</div>
+          <label>Project Images</label>
+          <div class="img-gallery" id="edit-img-gallery"></div>
+          <div class="img-upload-area">
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'edit')">
+            <div class="img-upload-label">＋ Add images — jpg, png, gif, webp, max 5 MB each</div>
           </div>
-          <img id="edit-img-preview" class="img-preview" style="display:none" src="" alt="Preview">
-          <button type="button" id="edit-img-remove" class="img-remove" style="display:none" onclick="removeImage('edit-img-preview','edit-img-url','edit-img-remove','edit-img-area')">✕ Remove image</button>
-          <input type="hidden" id="edit-img-url">
           <div id="edit-img-status" class="img-uploading" style="display:none">Uploading...</div>
         </div>
       </div>
@@ -413,34 +412,42 @@ function updateCounts(projects) {
   document.getElementById('count-wip').textContent    = projects.filter(p=>p.status==='wip').length;
 }
 
-// ── Image upload helpers ──────────────────────────────────────
-async function previewImage(input, previewId, urlId) {
-  const file = input.files[0];
-  if (!file) return;
-  const statusId = urlId.replace('-url', '-status');
-  document.getElementById(statusId).style.display = 'block';
-  const fd = new FormData();
-  fd.append('image', file);
-  const res = await fetch(`${API}/uploads/`, { method: 'POST', body: fd });
-  document.getElementById(statusId).style.display = 'none';
-  if (res.ok) {
-    const data = await res.json();
-    document.getElementById(urlId).value = data.url;
-    const img = document.getElementById(previewId);
-    img.src = data.url;
-    img.style.display = 'block';
-    document.getElementById(urlId.replace('-url', '-remove')).style.display = 'inline-block';
-  } else {
-    toast('Image upload failed', true);
-    input.value = '';
+// ── Image gallery helpers ─────────────────────────────────────
+const projectImages = { ap: [], edit: [] };
+
+async function uploadImages(input, prefix) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const statusEl = document.getElementById(`${prefix}-img-status`);
+  statusEl.style.display = 'block';
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await fetch(`${API}/uploads/`, { method: 'POST', body: fd });
+    if (res.ok) {
+      projectImages[prefix].push((await res.json()).url);
+    } else {
+      toast(`Failed to upload ${file.name}`, true);
+    }
   }
+  statusEl.style.display = 'none';
+  input.value = '';
+  renderImageGallery(prefix);
 }
 
-function removeImage(previewId, urlId, removeId, areaId) {
-  document.getElementById(previewId).style.display = 'none';
-  document.getElementById(previewId).src = '';
-  document.getElementById(urlId).value = '';
-  document.getElementById(removeId).style.display = 'none';
+function removeProjectImage(prefix, i) {
+  projectImages[prefix].splice(i, 1);
+  renderImageGallery(prefix);
+}
+
+function renderImageGallery(prefix) {
+  document.getElementById(`${prefix}-img-gallery`).innerHTML =
+    projectImages[prefix].map((url, i) => `
+      <div class="img-thumb">
+        <img src="${url}" alt="">
+        <button type="button" class="img-thumb-del" onclick="removeProjectImage('${prefix}',${i})">✕</button>
+      </div>
+    `).join('');
 }
 
 // ── Add project ──────────────────────────────────────────────
@@ -456,7 +463,7 @@ async function addProject() {
     tags,
     github_url:  document.getElementById('ap-github').value.trim(),
     demo_url:    document.getElementById('ap-demo').value.trim(),
-    image_url:   document.getElementById('ap-img-url').value.trim(),
+    images:      projectImages.ap,
     status:      document.getElementById('ap-status').value,
     sort_order:  parseInt(document.getElementById('ap-sort').value) || 0,
   };
@@ -478,7 +485,8 @@ function resetAddForm() {
   document.getElementById('ap-lang').value   = '';
   document.getElementById('ap-status').value = 'active';
   document.getElementById('ap-sort').value   = '0';
-  removeImage('ap-img-preview','ap-img-url','ap-img-remove','ap-img-area');
+  projectImages.ap = [];
+  renderImageGallery('ap');
 }
 
 // ── Delete ───────────────────────────────────────────────────
@@ -502,20 +510,8 @@ function openEdit(id) {
   document.getElementById('edit-demo').value    = p.demo_url   || '';
   document.getElementById('edit-tags').value    = (p.tags||[]).join(', ');
   document.getElementById('edit-sort').value    = p.sort_order || 0;
-  // Image
-  const imgUrl = p.image_url || '';
-  document.getElementById('edit-img-url').value = imgUrl;
-  const preview = document.getElementById('edit-img-preview');
-  const removeBtn = document.getElementById('edit-img-remove');
-  if (imgUrl) {
-    preview.src = imgUrl;
-    preview.style.display = 'block';
-    removeBtn.style.display = 'inline-block';
-  } else {
-    preview.src = '';
-    preview.style.display = 'none';
-    removeBtn.style.display = 'none';
-  }
+  projectImages.edit = [...(p.images || [])];
+  renderImageGallery('edit');
   document.getElementById('edit-modal').classList.add('open');
 }
 
@@ -529,7 +525,7 @@ async function saveEdit() {
     status:      document.getElementById('edit-status').value,
     github_url:  document.getElementById('edit-github').value.trim(),
     demo_url:    document.getElementById('edit-demo').value.trim(),
-    image_url:   document.getElementById('edit-img-url').value.trim(),
+    images:      projectImages.edit,
     tags,
     sort_order:  parseInt(document.getElementById('edit-sort').value) || 0,
   };
@@ -542,7 +538,11 @@ async function saveEdit() {
   } else toast('Error saving', true);
 }
 
-function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  projectImages.edit = [];
+  renderImageGallery('edit');
+}
 function handleModalClick(e) { if (e.target === document.getElementById('edit-modal')) closeModal(); }
 
 // ── Save settings ────────────────────────────────────────────

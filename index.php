@@ -107,8 +107,10 @@
   .gh-link:hover { color:var(--amber); }
   .demo-link { color:var(--amber); font-size:0.68rem; text-decoration:none; letter-spacing:0.08em; text-transform:uppercase; transition:opacity 0.2s; }
   .demo-link:hover { opacity:0.7; }
-  .card-image { width:100%; height:160px; object-fit:cover; display:block; margin:-1.5rem -1.5rem 1rem; width:calc(100% + 3rem); border-bottom:1px solid var(--border); filter:brightness(0.85); transition:filter 0.3s; }
-  .project-card:hover .card-image { filter:brightness(1); }
+  .card-image-wrap { position:relative; margin:-1.5rem -1.5rem 1rem; width:calc(100% + 3rem); }
+  .card-image-wrap img { width:100%; height:160px; object-fit:cover; display:block; border-bottom:1px solid var(--border); filter:brightness(0.85); transition:filter 0.3s; }
+  .project-card:hover .card-image-wrap img { filter:brightness(1); }
+  .card-image-count { position:absolute; bottom:6px; right:8px; background:rgba(0,0,0,0.72); color:var(--amber); font-size:0.58rem; letter-spacing:0.1em; padding:0.15rem 0.45rem; font-family:var(--mono); pointer-events:none; }
   .empty-state { grid-column:1/-1; text-align:center; padding:4rem 2rem; color:var(--muted); font-size:0.8rem; border:1px dashed var(--border); }
 
   /* CONTACT */
@@ -265,7 +267,11 @@ function renderProjects(projects) {
   grid.innerHTML = projects.map((p, i) => `
     <div class="project-card" style="animation-delay:${i*0.07}s">
       <div class="card-corner"></div>
-      ${p.image_url ? `<img class="card-image" src="${esc(p.image_url)}" alt="${esc(p.title)}">` : ''}
+      ${p.images && p.images.length ? `
+        <div class="card-image-wrap">
+          <img src="${esc(p.images[0])}" alt="${esc(p.title)}" loading="lazy">
+          ${p.images.length > 1 ? `<span class="card-image-count">+${p.images.length - 1} more</span>` : ''}
+        </div>` : ''}
       <div>
         <span class="card-lang">${esc(p.language)}</span>
         <span class="card-status ${esc(p.status)}">${esc(p.status)}</span>
