@@ -43,17 +43,19 @@ if ($method === 'POST') {
     $lang   = trim($b['language'] ?? '');
     if (!$title || !$desc || !$lang) json_response(['error' => 'title, description, language required'], 422);
 
-    $tags   = implode(',', array_map('trim', (array)($b['tags'] ?? [])));
-    $github = trim($b['github_url'] ?? '');
-    $demo   = trim($b['demo_url']   ?? '');
-    $status = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
-    $sort   = (int)($b['sort_order'] ?? 0);
+    $shortDesc  = trim($b['short_description'] ?? '');
+    $tags       = implode(',', array_map('trim', (array)($b['tags'] ?? [])));
+    $github     = trim($b['github_url'] ?? '');
+    $demo       = trim($b['demo_url']   ?? '');
+    $summaryImg = !empty(trim($b['summary_image'] ?? '')) ? trim($b['summary_image']) : null;
+    $status     = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
+    $sort       = (int)($b['sort_order'] ?? 0);
 
     $stmt = db()->prepare('
-        INSERT INTO projects (title, description, language, tags, github_url, demo_url, status, sort_order)
-        VALUES (?,?,?,?,?,?,?,?)
+        INSERT INTO projects (title, short_description, description, language, tags, github_url, demo_url, summary_image, status, sort_order)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
     ');
-    $stmt->execute([$title, $desc, $lang, $tags, $github, $demo, $status, $sort]);
+    $stmt->execute([$title, $shortDesc ?: null, $desc, $lang, $tags, $github, $demo, $summaryImg, $status, $sort]);
     $newId = db()->lastInsertId();
 
     // Insert images
@@ -79,16 +81,20 @@ if ($method === 'PUT') {
     $fields = [];
     $params = [];
 
-    $allowed = ['title','description','language','github_url','demo_url','status','sort_order'];
+    $allowed = ['title','short_description','description','language','github_url','demo_url','status','sort_order'];
     foreach ($allowed as $f) {
         if (array_key_exists($f, $b)) {
             $fields[] = "`$f` = ?";
-            $params[] = $f === 'sort_order' ? (int)$b[$f] : trim($b[$f]);
+            $params[] = $f === 'sort_order' ? (int)$b[$f] : (trim($b[$f]) ?: null);
         }
     }
     if (array_key_exists('tags', $b)) {
         $fields[] = '`tags` = ?';
         $params[] = implode(',', array_map('trim', (array)$b['tags']));
+    }
+    if (array_key_exists('summary_image', $b)) {
+        $fields[] = '`summary_image` = ?';
+        $params[] = !empty(trim($b['summary_image'] ?? '')) ? trim($b['summary_image']) : null;
     }
 
     if ($fields) {

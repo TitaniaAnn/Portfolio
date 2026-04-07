@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portfolio</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -129,6 +133,39 @@
   /* Loading skeleton */
   .skeleton { background:linear-gradient(90deg,var(--bg3) 25%,var(--border) 50%,var(--bg3) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:2px; }
   @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* PROJECT CARD — clickable */
+  .project-card { cursor:pointer; }
+
+  /* PROJECT DETAIL MODAL */
+  .proj-detail-overlay { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.88); backdrop-filter:blur(6px); align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto; }
+  .proj-detail-overlay.open { display:flex; }
+  .proj-detail { background:var(--bg2); border:1px solid var(--amber-dim); width:100%; max-width:800px; position:relative; animation:fadeUp 0.25s ease both; margin:auto; }
+  .proj-detail-close { position:absolute; top:0.7rem; right:0.7rem; z-index:10; background:rgba(0,0,0,0.65); border:1px solid var(--border); color:var(--muted); font-family:var(--mono); font-size:0.85rem; width:30px; height:30px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .proj-detail-close:hover { border-color:var(--red); color:var(--red); }
+
+  /* CAROUSEL */
+  .proj-carousel { position:relative; background:#000; overflow:hidden; }
+  .proj-carousel.no-images { display:none; }
+  .carousel-img-wrap { width:100%; line-height:0; }
+  .carousel-img-wrap img { width:100%; height:400px; object-fit:cover; display:block; }
+  .carousel-btn { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15); color:var(--text); font-family:var(--mono); font-size:1.5rem; width:44px; height:44px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:2; line-height:1; }
+  .carousel-btn:hover { border-color:var(--amber); color:var(--amber); background:rgba(0,0,0,0.8); }
+  .carousel-btn.prev { left:0.7rem; }
+  .carousel-btn.next { right:0.7rem; }
+  .carousel-btn.hidden { display:none; }
+  .carousel-counter { position:absolute; bottom:0.6rem; right:0.8rem; background:rgba(0,0,0,0.65); color:var(--amber); font-size:0.58rem; letter-spacing:0.12em; padding:0.15rem 0.5rem; }
+  .carousel-dots { position:absolute; bottom:0.65rem; left:50%; transform:translateX(-50%); display:flex; gap:0.45rem; }
+  .carousel-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.3); cursor:pointer; transition:background 0.2s; border:none; padding:0; flex-shrink:0; }
+  .carousel-dot.active { background:var(--amber); }
+
+  /* DETAIL BODY */
+  .proj-detail-body { padding:1.5rem 2rem 2rem; }
+  .proj-detail-meta { margin-bottom:0.8rem; display:flex; align-items:center; gap:0.4rem; }
+  .proj-detail-title { font-family:var(--display); font-size:1.5rem; font-weight:700; margin-bottom:1rem; line-height:1.2; }
+  .proj-detail-desc { font-size:0.82rem; color:var(--muted); line-height:1.85; margin-bottom:1.2rem; white-space:pre-wrap; }
+  .proj-detail-links { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1.2rem; border-top:1px solid var(--border); align-items:center; }
+  @media(max-width:600px) { .carousel-img-wrap img { height:240px; } .proj-detail-body { padding:1rem 1.2rem 1.5rem; } }
 </style>
 </head>
 <body>
@@ -205,9 +242,34 @@
   <p>Built with precision — <span id="footer-name">Portfolio</span> © <?= date('Y') ?> &nbsp;|&nbsp; <a id="footer-github" href="#">GitHub</a> &nbsp;|&nbsp; <a href="/admin/">Admin</a></p>
 </footer>
 
+<!-- PROJECT DETAIL MODAL -->
+<div class="proj-detail-overlay" id="proj-detail-overlay">
+  <div class="proj-detail">
+    <button class="proj-detail-close" id="proj-detail-close">✕</button>
+    <div class="proj-carousel" id="proj-carousel">
+      <div class="carousel-img-wrap"><img id="carousel-img" src="" alt=""></div>
+      <button class="carousel-btn prev hidden" id="carousel-prev">&#8249;</button>
+      <button class="carousel-btn next hidden" id="carousel-next">&#8250;</button>
+      <div class="carousel-dots" id="carousel-dots"></div>
+      <div class="carousel-counter" id="carousel-counter"></div>
+    </div>
+    <div class="proj-detail-body">
+      <div class="proj-detail-meta">
+        <span class="card-lang" id="pd-lang"></span>
+        <span class="card-status" id="pd-status"></span>
+      </div>
+      <div class="proj-detail-title" id="pd-title"></div>
+      <div class="proj-detail-desc" id="pd-desc"></div>
+      <div class="card-tags" id="pd-tags"></div>
+      <div class="proj-detail-links" id="pd-links"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '/api';
 let siteSettings = {};
+let allProjectsData = [];
 
 // ── Load settings & projects ────────────────────────────────
 async function init() {
@@ -216,6 +278,7 @@ async function init() {
     fetch(`${API}/projects/`).then(r => r.json()).catch(() => []),
   ]);
   siteSettings = settings;
+  allProjectsData = projects;
   applySettings(settings, projects.length);
   renderProjects(projects);
 }
@@ -264,27 +327,30 @@ function renderProjects(projects) {
     grid.innerHTML = '<div class="empty-state">No projects yet.</div>';
     return;
   }
-  grid.innerHTML = projects.map((p, i) => `
-    <div class="project-card" style="animation-delay:${i*0.07}s">
+  grid.innerHTML = projects.map((p, i) => {
+    const summaryImg = p.summary_image || (p.images && p.images[0]);
+    const shortDesc  = p.short_description || p.description;
+    return `
+    <div class="project-card" style="animation-delay:${i*0.07}s" onclick="openProjectDetail(${p.id})">
       <div class="card-corner"></div>
-      ${p.images && p.images.length ? `
+      ${summaryImg ? `
         <div class="card-image-wrap">
-          <img src="${esc(p.images[0])}" alt="${esc(p.title)}" loading="lazy">
-          ${p.images.length > 1 ? `<span class="card-image-count">+${p.images.length - 1} more</span>` : ''}
+          <img src="${esc(summaryImg)}" alt="${esc(p.title)}" loading="lazy">
+          ${p.images && p.images.length > 1 ? `<span class="card-image-count">+${p.images.length - 1} more</span>` : ''}
         </div>` : ''}
       <div>
         <span class="card-lang">${esc(p.language)}</span>
         <span class="card-status ${esc(p.status)}">${esc(p.status)}</span>
       </div>
       <div class="card-title">${esc(p.title)}</div>
-      <div class="card-desc">${esc(p.description)}</div>
+      <div class="card-desc">${esc(shortDesc)}</div>
       <div class="card-tags">${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-      <div class="card-footer">
+      <div class="card-footer" onclick="event.stopPropagation()">
         ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" class="gh-link">⌥ GitHub →</a>` : '<span></span>'}
         ${p.demo_url   ? `<a href="${esc(p.demo_url)}"   target="_blank" class="demo-link">Live Demo →</a>` : ''}
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // ── Typed effect ─────────────────────────────────────────────
@@ -305,6 +371,75 @@ function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ── Project detail modal & carousel ─────────────────────────
+let carouselImages = [];
+let carouselIdx    = 0;
+
+function openProjectDetail(id) {
+  const p = allProjectsData.find(x => x.id === id);
+  if (!p) return;
+
+  carouselImages = p.images || [];
+  carouselIdx    = 0;
+  const carousel = document.getElementById('proj-carousel');
+  if (carouselImages.length) {
+    carousel.classList.remove('no-images');
+    updateCarousel();
+  } else {
+    carousel.classList.add('no-images');
+  }
+
+  document.getElementById('pd-lang').textContent  = p.language;
+  const statusEl = document.getElementById('pd-status');
+  statusEl.textContent = p.status;
+  statusEl.className   = `card-status ${p.status}`;
+  document.getElementById('pd-title').textContent = p.title;
+  document.getElementById('pd-desc').textContent  = p.description;
+  document.getElementById('pd-tags').innerHTML    = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+
+  const links = [];
+  if (p.github_url) links.push(`<a href="${esc(p.github_url)}" target="_blank" class="gh-link">⌥ GitHub →</a>`);
+  if (p.demo_url)   links.push(`<a href="${esc(p.demo_url)}"   target="_blank" class="demo-link">Live Demo →</a>`);
+  document.getElementById('pd-links').innerHTML = links.join('');
+
+  document.getElementById('proj-detail-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProjDetail() {
+  document.getElementById('proj-detail-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateCarousel() {
+  document.getElementById('carousel-img').src = carouselImages[carouselIdx] || '';
+  const single = carouselImages.length <= 1;
+  document.getElementById('carousel-prev').classList.toggle('hidden', single);
+  document.getElementById('carousel-next').classList.toggle('hidden', single);
+  document.getElementById('carousel-counter').textContent = single ? '' : `${carouselIdx + 1} / ${carouselImages.length}`;
+  document.getElementById('carousel-dots').innerHTML = single ? '' :
+    carouselImages.map((_, i) => `<button class="carousel-dot${i===carouselIdx?' active':''}" onclick="goCarousel(${i})"></button>`).join('');
+}
+
+function carouselPrev() { carouselIdx = (carouselIdx - 1 + carouselImages.length) % carouselImages.length; updateCarousel(); }
+function carouselNext() { carouselIdx = (carouselIdx + 1) % carouselImages.length; updateCarousel(); }
+function goCarousel(i)  { carouselIdx = i; updateCarousel(); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('proj-detail-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeProjDetail();
+  });
+  document.getElementById('proj-detail-close').addEventListener('click', closeProjDetail);
+  document.getElementById('carousel-prev').addEventListener('click', carouselPrev);
+  document.getElementById('carousel-next').addEventListener('click', carouselNext);
+  document.addEventListener('keydown', function(e) {
+    if (!document.getElementById('proj-detail-overlay').classList.contains('open')) return;
+    if (e.key === 'Escape')      closeProjDetail();
+    if (e.key === 'ArrowLeft')   carouselPrev();
+    if (e.key === 'ArrowRight')  carouselNext();
+  });
+});
 
 init();
 </script>
