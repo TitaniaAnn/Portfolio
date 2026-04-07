@@ -111,6 +111,7 @@
   .card-corner { position:absolute; top:0; right:0; width:0; height:0; border-style:solid; border-width:0 22px 22px 0; border-color:transparent var(--amber-dim) transparent transparent; }
   .card-lang { display:inline-block; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--amber); background:var(--amber-glow); padding:0.15rem 0.5rem; margin-bottom:1rem; }
   .card-status { display:inline-block; font-size:0.55rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.12rem 0.4rem; margin-left:0.4rem; }
+  .card-year { display:inline-block; font-size:0.55rem; letter-spacing:0.08em; color:var(--muted); padding:0.12rem 0.4rem; margin-left:0.4rem; }
   .card-status.active  { color:var(--green); border:1px solid var(--green); }
   .card-status.wip     { color:var(--blue);  border:1px solid var(--blue);  }
   .card-status.archived{ color:var(--muted); border:1px solid var(--border);}
@@ -272,6 +273,7 @@
       <div class="proj-detail-meta">
         <span class="card-lang" id="pd-lang"></span>
         <span class="card-status" id="pd-status"></span>
+        <span class="card-year" id="pd-year" style="display:none"></span>
       </div>
       <div class="proj-detail-title" id="pd-title"></div>
       <div class="proj-detail-desc" id="pd-desc"></div>
@@ -356,6 +358,7 @@ function renderProjects(projects) {
       <div>
         <span class="card-lang">${esc(p.language)}</span>
         <span class="card-status ${esc(p.status)}">${esc(p.status)}</span>
+        ${p.year ? `<span class="card-year">${esc(String(p.year))}</span>` : ''}
       </div>
       <div class="card-title">${esc(p.title)}</div>
       <div class="card-desc">${esc(shortDesc)}</div>
@@ -409,6 +412,9 @@ function openProjectDetail(id) {
   const statusEl = document.getElementById('pd-status');
   statusEl.textContent = p.status;
   statusEl.className   = `card-status ${p.status}`;
+  const yearEl = document.getElementById('pd-year');
+  if (p.year) { yearEl.textContent = p.year; yearEl.style.display = ''; }
+  else yearEl.style.display = 'none';
   document.getElementById('pd-title').textContent = p.title;
   document.getElementById('pd-desc').textContent  = p.description;
   document.getElementById('pd-tags').innerHTML    = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');

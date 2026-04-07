@@ -248,6 +248,10 @@ if (!$admin) {
           <input type="text" id="ap-sort" placeholder="0" value="0">
           <div class="hint">Lower = appears first</div>
         </div>
+        <div class="form-group">
+          <label>Year Created</label>
+          <input type="number" id="ap-year" placeholder="2024" min="1900" max="2099">
+        </div>
         <div class="form-group full">
           <label>Project Images</label>
           <div class="img-gallery" id="ap-img-gallery"></div>
@@ -342,6 +346,7 @@ if (!$admin) {
         <div class="form-group"><label>Demo URL</label><input type="url" id="edit-demo"></div>
         <div class="form-group"><label>Tags</label><input type="text" id="edit-tags"><div class="hint">Comma-separated</div></div>
         <div class="form-group"><label>Sort Order</label><input type="text" id="edit-sort"></div>
+        <div class="form-group"><label>Year Created</label><input type="number" id="edit-year" min="1900" max="2099"></div>
         <div class="form-group full">
           <label>Project Images</label>
           <div class="img-gallery" id="edit-img-gallery"></div>
@@ -494,6 +499,7 @@ async function addProject() {
     summary_image: projectSummaryImage.ap || null,
     status:        document.getElementById('ap-status').value,
     sort_order:    parseInt(document.getElementById('ap-sort').value) || 0,
+    year:          parseInt(document.getElementById('ap-year').value) || null,
   };
 
   const res = await fetch(`${API}/projects/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -513,6 +519,7 @@ function resetAddForm() {
   document.getElementById('ap-lang').value   = '';
   document.getElementById('ap-status').value = 'active';
   document.getElementById('ap-sort').value   = '0';
+  document.getElementById('ap-year').value   = '';
   projectImages.ap       = [];
   projectSummaryImage.ap = null;
   renderImageGallery('ap');
@@ -540,6 +547,7 @@ function openEdit(id) {
   document.getElementById('edit-demo').value        = p.demo_url   || '';
   document.getElementById('edit-tags').value        = (p.tags||[]).join(', ');
   document.getElementById('edit-sort').value        = p.sort_order || 0;
+  document.getElementById('edit-year').value        = p.year || '';
   projectImages.edit       = [...(p.images || [])];
   projectSummaryImage.edit = p.summary_image || null;
   renderImageGallery('edit');
@@ -561,6 +569,7 @@ async function saveEdit() {
     summary_image:     projectSummaryImage.edit || null,
     tags,
     sort_order:        parseInt(document.getElementById('edit-sort').value) || 0,
+    year:              parseInt(document.getElementById('edit-year').value) || null,
   };
 
   const res = await fetch(`${API}/projects/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });

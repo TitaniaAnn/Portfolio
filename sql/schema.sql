@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS projects (
     summary_image     VARCHAR(512),
     status            ENUM('active','wip','archived') DEFAULT 'active',
     sort_order        INT DEFAULT 0,
+    year              YEAR NULL,
     created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -86,3 +87,4 @@ INSERT INTO projects (title, description, language, tags, github_url, demo_url, 
 -- CREATE TABLE IF NOT EXISTS project_images (id INT AUTO_INCREMENT PRIMARY KEY, project_id INT NOT NULL, url VARCHAR(512) NOT NULL, sort_order INT DEFAULT 0, FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE);
 -- ALTER TABLE projects ADD COLUMN short_description TEXT AFTER title;
 -- ALTER TABLE projects ADD COLUMN summary_image VARCHAR(512) AFTER demo_url;
+-- ALTER TABLE projects ADD COLUMN year YEAR NULL AFTER sort_order;

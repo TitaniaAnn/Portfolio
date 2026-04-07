@@ -50,12 +50,13 @@ if ($method === 'POST') {
     $summaryImg = !empty(trim($b['summary_image'] ?? '')) ? trim($b['summary_image']) : null;
     $status     = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
     $sort       = (int)($b['sort_order'] ?? 0);
+    $year       = !empty($b['year']) ? (int)$b['year'] : null;
 
     $stmt = db()->prepare('
-        INSERT INTO projects (title, short_description, description, language, tags, github_url, demo_url, summary_image, status, sort_order)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
+        INSERT INTO projects (title, short_description, description, language, tags, github_url, demo_url, summary_image, status, sort_order, year)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
     ');
-    $stmt->execute([$title, $shortDesc ?: null, $desc, $lang, $tags, $github, $demo, $summaryImg, $status, $sort]);
+    $stmt->execute([$title, $shortDesc ?: null, $desc, $lang, $tags, $github, $demo, $summaryImg, $status, $sort, $year]);
     $newId = db()->lastInsertId();
 
     // Insert images
@@ -81,11 +82,11 @@ if ($method === 'PUT') {
     $fields = [];
     $params = [];
 
-    $allowed = ['title','short_description','description','language','github_url','demo_url','status','sort_order'];
+    $allowed = ['title','short_description','description','language','github_url','demo_url','status','sort_order','year'];
     foreach ($allowed as $f) {
         if (array_key_exists($f, $b)) {
             $fields[] = "`$f` = ?";
-            $params[] = $f === 'sort_order' ? (int)$b[$f] : (trim($b[$f]) ?: null);
+            $params[] = in_array($f, ['sort_order','year']) ? ((int)$b[$f] ?: null) : (trim($b[$f]) ?: null);
         }
     }
     if (array_key_exists('tags', $b)) {
