@@ -45,6 +45,18 @@
   .nav-links a:hover { color:var(--amber); }
   .nav-admin { background:transparent; border:1px solid var(--amber-dim); color:var(--amber); font-family:var(--mono); font-size:0.68rem; letter-spacing:0.1em; padding:0.35rem 0.85rem; cursor:pointer; text-transform:uppercase; text-decoration:none; transition:all 0.2s; }
   .nav-admin:hover { background:var(--amber-glow); }
+  .nav-hamburger { display:none; flex-direction:column; gap:5px; background:none; border:none; cursor:pointer; padding:4px; }
+  .nav-hamburger span { display:block; width:22px; height:2px; background:var(--text); transition:all 0.25s; }
+  .nav-hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity:0; }
+  .nav-hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+  @media (max-width: 640px) {
+    .nav-hamburger { display:flex; }
+    .nav-links { display:none; flex-direction:column; align-items:flex-start; gap:0; position:absolute; top:56px; left:0; right:0; background:rgba(13,13,13,0.97); border-bottom:1px solid var(--border); padding:0.5rem 0; }
+    .nav-links.open { display:flex; }
+    .nav-links a { padding:0.75rem 2rem; width:100%; font-size:0.75rem; }
+    .nav-admin { margin:0.5rem 2rem 0.75rem; }
+  }
 
   /* HERO */
   #hero { min-height:100vh; display:flex; align-items:center; padding:7rem 2rem 4rem; position:relative; overflow:hidden; }
@@ -172,7 +184,10 @@
 
 <nav>
   <a href="#hero" class="nav-logo" id="nav-logo">dev.portfolio</a>
-  <div class="nav-links">
+  <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links" id="nav-links">
     <a href="#about">About</a>
     <a href="#projects">Projects</a>
     <a href="#contact">Contact</a>
@@ -442,6 +457,24 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 init();
+
+// Hamburger menu
+(function() {
+  const btn = document.getElementById('nav-hamburger');
+  const links = document.getElementById('nav-links');
+  btn.addEventListener('click', function() {
+    const open = links.classList.toggle('open');
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open);
+  });
+  links.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      links.classList.remove('open');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  });
+})();
 </script>
 </body>
 </html>
