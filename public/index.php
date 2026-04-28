@@ -179,6 +179,7 @@
   .proj-detail-desc { font-size:0.82rem; color:var(--muted); line-height:1.85; margin-bottom:1.2rem; white-space:pre-wrap; }
   .proj-detail-links { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1.2rem; border-top:1px solid var(--border); align-items:center; }
   @media(max-width:600px) { .carousel-img-wrap img { height:240px; } .proj-detail-body { padding:1rem 1.2rem 1.5rem; } }
+
 </style>
 </head>
 <body>
@@ -193,7 +194,6 @@
     <a href="#projects">Projects</a>
     <a href="#contact">Contact</a>
     <a id="nav-github" href="#" target="_blank">GitHub</a>
-    <a href="/admin/" class="nav-admin">⚙ Admin</a>
   </div>
 </nav>
 
@@ -207,7 +207,7 @@
     <div class="hero-ctas">
       <a href="#projects" class="btn-primary">View Projects →</a>
       <a id="cta-github" href="#" target="_blank" class="btn-secondary">GitHub Profile</a>
-      <a href="/assets/Cynthia_Brown_Resume.pdf" download="Cynthia_Brown_Resume.pdf" class="btn-secondary">⬇ Resume</a>
+      <a id="cta-resume" href="#" download="resume.pdf" class="btn-secondary" style="display:none">⬇ Resume</a>
     </div>
     <div class="hero-stats">
       <div><div class="stat-num" id="stat-projects">—</div><div class="stat-label">Projects Shipped</div></div>
@@ -335,6 +335,14 @@ function applySettings(s, projectCount) {
   const bioEl = document.getElementById('about-text');
   bioEl.innerHTML = `<p>${esc(s.bio || '')}</p><div style="margin-top:1.5rem"><a href="#contact" class="btn-secondary">Get in Touch →</a></div>`;
 
+  const resumeBtn = document.getElementById('cta-resume');
+  if (s.resume_url) {
+    resumeBtn.href = s.resume_url;
+    resumeBtn.style.display = '';
+  } else {
+    resumeBtn.style.display = 'none';
+  }
+
   startTyped(s.role || 'Developer');
 }
 
@@ -390,6 +398,12 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function renderDesc(text) {
+  if (!text) return '';
+  // esc() runs first so no HTML injection is possible, then ** ** → bold
+  return esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--text);font-weight:600">$1</strong>');
+}
+
 // ── Project detail modal & carousel ─────────────────────────
 let carouselImages = [];
 let carouselIdx    = 0;
@@ -416,7 +430,7 @@ function openProjectDetail(id) {
   if (p.year) { yearEl.textContent = p.year; yearEl.style.display = ''; }
   else yearEl.style.display = 'none';
   document.getElementById('pd-title').textContent = p.title;
-  document.getElementById('pd-desc').textContent  = p.description;
+  document.getElementById('pd-desc').innerHTML  = renderDesc(p.description);
   document.getElementById('pd-tags').innerHTML    = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
 
   const links = [];
@@ -432,6 +446,7 @@ function closeProjDetail() {
   document.getElementById('proj-detail-overlay').classList.remove('open');
   document.body.style.overflow = '';
 }
+
 
 function updateCarousel() {
   document.getElementById('carousel-img').src = carouselImages[carouselIdx] || '';

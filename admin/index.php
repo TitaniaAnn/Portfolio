@@ -160,6 +160,9 @@ if (!$admin) {
     <button class="nav-item" onclick="showPanel('add-project')"><span class="nav-icon">＋</span> Add Project</button>
     <div class="nav-section">Site</div>
     <button class="nav-item" onclick="showPanel('settings')"><span class="nav-icon">⚙</span> Settings</button>
+    <button class="nav-item" onclick="showPanel('resume')"><span class="nav-icon">▤</span> Resume</button>
+    <div class="nav-section">System</div>
+    <a href="/admin/update.php" class="nav-item"><span class="nav-icon">⬆</span> DB Migrations</a>
     <div class="nav-section">Account</div>
     <button class="nav-item" onclick="showPanel('account')"><span class="nav-icon">◉</span> Account</button>
   </aside>
@@ -215,12 +218,7 @@ if (!$admin) {
         </div>
         <div class="form-group">
           <label>Primary Language <span class="req">*</span></label>
-          <select id="ap-lang">
-            <option value="">— Select —</option>
-            <option>JavaScript</option><option>TypeScript</option><option>Python</option>
-            <option>PHP</option><option>Go</option><option>Rust</option>
-            <option>Ruby</option><option>C++</option><option>Swift</option><option>Kotlin</option><option>Other</option>
-          </select>
+          <input type="text" id="ap-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
         <div class="form-group">
           <label>Status</label>
@@ -290,6 +288,29 @@ if (!$admin) {
       </div>
     </div>
 
+    <!-- ── RESUME ── -->
+    <div class="panel" id="panel-resume">
+      <div class="panel-header">
+        <div class="panel-title">Resume</div>
+        <div class="panel-sub">Upload a PDF resume for your portfolio</div>
+      </div>
+      <div id="resume-current" style="margin-bottom:1.5rem;display:none">
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem;display:flex;align-items:center;justify-content:space-between;max-width:400px">
+          <div>
+            <div style="font-size:0.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem">Current Resume</div>
+            <a id="resume-link" href="" target="_blank" style="color:var(--amber);font-size:0.8rem;text-decoration:none">resume.pdf ↗</a>
+          </div>
+        </div>
+      </div>
+      <div style="max-width:400px">
+        <div class="img-upload-area">
+          <input type="file" accept="application/pdf" onchange="uploadResume(this)">
+          <div class="img-upload-label">＋ Replace resume — PDF only, max 10 MB</div>
+        </div>
+        <div id="resume-status" class="img-uploading" style="display:none">Uploading...</div>
+      </div>
+    </div>
+
     <!-- ── ACCOUNT ── -->
     <div class="panel" id="panel-account">
       <div class="panel-header">
@@ -333,11 +354,7 @@ if (!$admin) {
         <div class="form-group full"><label>Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
         <div class="form-group full"><label>Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea></div>
         <div class="form-group"><label>Language <span class="req">*</span></label>
-          <select id="edit-lang">
-            <option>JavaScript</option><option>TypeScript</option><option>Python</option>
-            <option>PHP</option><option>Go</option><option>Rust</option>
-            <option>Ruby</option><option>C++</option><option>Swift</option><option>Kotlin</option><option>Other</option>
-          </select>
+          <input type="text" id="edit-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
         <div class="form-group"><label>Status</label>
           <select id="edit-status"><option value="active">Active</option><option value="wip">WIP</option><option value="archived">Archived</option></select>
@@ -364,6 +381,21 @@ if (!$admin) {
     </div>
   </div>
 </div>
+
+<datalist id="lang-options">
+  <option>JavaScript</option>
+  <option>TypeScript</option>
+  <option>Python</option>
+  <option>PHP</option>
+  <option>Flutter</option>
+  <option>Go</option>
+  <option>Rust</option>
+  <option>Ruby</option>
+  <option>C++</option>
+  <option>Swift</option>
+  <option>Kotlin</option>
+  <option>Other</option>
+</datalist>
 
 <script>
 const API = '/api';
@@ -541,6 +573,7 @@ function openEdit(id) {
   document.getElementById('edit-title').value       = p.title;
   document.getElementById('edit-short-desc').value  = p.short_description || '';
   document.getElementById('edit-desc').value        = p.description;
+
   document.getElementById('edit-lang').value        = p.language;
   document.getElementById('edit-status').value      = p.status;
   document.getElementById('edit-github').value      = p.github_url || '';
@@ -629,9 +662,41 @@ function showPanelById(name) {
   });
 }
 
+// ── Resume ───────────────────────────────────────────────────
+async function loadResume() {
+  const res = await fetch(`${API}/uploads/resume.php`);
+  if (!res.ok) return;
+  const data = await res.json();
+  if (data.url) {
+    document.getElementById('resume-current').style.display = 'block';
+    document.getElementById('resume-link').href = data.url;
+  }
+}
+
+async function uploadResume(input) {
+  if (!input.files[0]) return;
+  const statusEl = document.getElementById('resume-status');
+  statusEl.style.display = 'block';
+  const fd = new FormData();
+  fd.append('resume', input.files[0]);
+  const res = await fetch(`${API}/uploads/resume.php`, { method: 'POST', body: fd });
+  statusEl.style.display = 'none';
+  input.value = '';
+  if (res.ok) {
+    const data = await res.json();
+    document.getElementById('resume-current').style.display = 'block';
+    document.getElementById('resume-link').href = data.url;
+    toast('Resume uploaded!');
+  } else {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'Upload failed', true);
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────────
 loadProjects();
 loadSettings();
+loadResume();
 </script>
 </body>
 </html>

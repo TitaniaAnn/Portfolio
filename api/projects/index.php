@@ -51,7 +51,6 @@ if ($method === 'POST') {
     $status     = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
     $sort       = (int)($b['sort_order'] ?? 0);
     $year       = !empty($b['year']) ? (int)$b['year'] : null;
-
     $stmt = db()->prepare('
         INSERT INTO projects (title, short_description, description, language, tags, github_url, demo_url, summary_image, status, sort_order, year)
         VALUES (?,?,?,?,?,?,?,?,?,?,?)
