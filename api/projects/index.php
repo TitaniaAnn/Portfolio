@@ -119,6 +119,18 @@ if ($method === 'PUT') {
     json_response($row);
 }
 
+// ── PATCH — bulk reorder ───────────────────────────────────
+if ($method === 'PATCH') {
+    $items = get_json_body();
+    $stmt  = db()->prepare('UPDATE projects SET sort_order = ? WHERE id = ?');
+    foreach ((array)$items as $item) {
+        if (isset($item['id'], $item['sort_order'])) {
+            $stmt->execute([(int)$item['sort_order'], (int)$item['id']]);
+        }
+    }
+    json_response(['success' => true]);
+}
+
 // ── DELETE ──────────────────────────────────────────────────
 if ($method === 'DELETE') {
     if (!$id) json_response(['error' => 'id required'], 422);

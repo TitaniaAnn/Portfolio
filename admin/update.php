@@ -76,6 +76,24 @@ $migrations = [
         'sql' => "ALTER TABLE projects ADD COLUMN summary_image VARCHAR(512) AFTER demo_url",
     ],
     [
+        'id'     => 'create_skill_groups',
+        'label'  => 'Create skill_groups table',
+        'detail' => 'Stores the grouped skill tags displayed in the About section.',
+        'check'  => function() {
+            return (bool) db()->query(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME   = 'skill_groups'"
+            )->fetchColumn();
+        },
+        'sql' => "CREATE TABLE IF NOT EXISTS skill_groups (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            label      VARCHAR(255) NOT NULL,
+            skills     TEXT,
+            sort_order INT DEFAULT 0
+        )",
+    ],
+    [
         'id'     => 'add_year',
         'label'  => 'Add year column to projects',
         'detail' => 'Year the project was created or shipped.',

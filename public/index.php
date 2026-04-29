@@ -93,13 +93,11 @@
   @media(max-width:700px){.about-grid{grid-template-columns:1fr;gap:2rem}}
   .about-text p { color:var(--muted); line-height:1.8; font-size:0.83rem; margin-bottom:1rem; }
   .about-text p strong { color:var(--text); }
-  .skills-block { display:flex; flex-direction:column; gap:1rem; }
-  .skill-row { display:flex; align-items:center; gap:1rem; }
-  .skill-name { font-size:0.7rem; color:var(--muted); width:90px; flex-shrink:0; text-transform:uppercase; letter-spacing:0.08em; }
-  .skill-bar { flex:1; height:4px; background:var(--border); overflow:hidden; }
-  .skill-fill { height:100%; background:var(--amber); transform-origin:left; animation:growBar 1.2s ease both; }
-  @keyframes growBar{from{transform:scaleX(0)}}
-  .skill-pct { font-size:0.62rem; color:var(--muted); width:30px; text-align:right; }
+  .skills-block { display:flex; flex-direction:column; gap:1.4rem; }
+  .skill-group-label { font-size:0.58rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--amber); margin-bottom:0.5rem; }
+  .skill-tags { display:flex; flex-wrap:wrap; gap:0.4rem; }
+  .skill-tag { font-size:0.68rem; color:var(--muted); border:1px solid var(--border); padding:0.2rem 0.55rem; letter-spacing:0.04em; transition:all 0.2s; }
+  .skill-tag:hover { border-color:var(--amber-dim); color:var(--text); }
 
   /* PROJECTS */
   #projects { background:var(--bg2); }
@@ -158,17 +156,18 @@
   .proj-detail-close:hover { border-color:var(--red); color:var(--red); }
 
   /* CAROUSEL */
-  .proj-carousel { position:relative; background:#000; overflow:hidden; }
+  .proj-carousel { background:#000; }
   .proj-carousel.no-images { display:none; }
-  .carousel-img-wrap { width:100%; line-height:0; }
-  .carousel-img-wrap img { width:100%; height:400px; object-fit:cover; display:block; }
+  .carousel-img-wrap { position:relative; width:100%; line-height:0; }
+  .carousel-img-wrap img { width:100%; height:400px; object-fit:contain; background:#000; display:block; }
   .carousel-btn { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15); color:var(--text); font-family:var(--mono); font-size:1.5rem; width:44px; height:44px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:2; line-height:1; }
   .carousel-btn:hover { border-color:var(--amber); color:var(--amber); background:rgba(0,0,0,0.8); }
   .carousel-btn.prev { left:0.7rem; }
   .carousel-btn.next { right:0.7rem; }
   .carousel-btn.hidden { display:none; }
-  .carousel-counter { position:absolute; bottom:0.6rem; right:0.8rem; background:rgba(0,0,0,0.65); color:var(--amber); font-size:0.58rem; letter-spacing:0.12em; padding:0.15rem 0.5rem; }
-  .carousel-dots { position:absolute; bottom:0.65rem; left:50%; transform:translateX(-50%); display:flex; gap:0.45rem; }
+  .carousel-bar { display:flex; align-items:center; justify-content:center; gap:1rem; padding:0.5rem 1rem; background:var(--bg3); border-top:1px solid var(--border); min-height:2rem; }
+  .carousel-dots { display:flex; gap:0.45rem; }
+  .carousel-counter { font-size:0.58rem; color:var(--muted); letter-spacing:0.12em; white-space:nowrap; }
   .carousel-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.3); cursor:pointer; transition:background 0.2s; border:none; padding:0; flex-shrink:0; }
   .carousel-dot.active { background:var(--amber); }
 
@@ -212,7 +211,6 @@
     <div class="hero-stats">
       <div><div class="stat-num" id="stat-projects">—</div><div class="stat-label">Projects Shipped</div></div>
       <div><div class="stat-num" id="stat-years">—</div><div class="stat-label">Years Experience</div></div>
-      <div><div class="stat-num">∞</div><div class="stat-label">Problems Solved</div></div>
     </div>
   </div>
 </section>
@@ -221,18 +219,7 @@
   <div class="section-header"><span class="section-num">01</span><h2 class="section-title">About</h2><div class="section-line"></div></div>
   <div class="about-grid">
     <div class="about-text" id="about-text"><p>Loading...</p></div>
-    <div class="skills-block">
-      <div class="skill-row"><span class="skill-name">PHP</span><div class="skill-bar"><div class="skill-fill" style="width:90%"></div></div><span class="skill-pct">90%</span></div>
-      <div class="skill-row"><span class="skill-name">SQL/MySQL</span><div class="skill-bar"><div class="skill-fill" style="width:85%"></div></div><span class="skill-pct">85%</span></div>
-      <div class="skill-row"><span class="skill-name">Javascript</span><div class="skill-bar"><div class="skill-fill" style="width:85%"></div></div><span class="skill-pct">85%</span></div>
-      <div class="skill-row"><span class="skill-name">WordPress</span><div class="skill-bar"><div class="skill-fill" style="width:88%"></div></div><span class="skill-pct">88%</span></div>
-      <div class="skill-row"><span class="skill-name">CSS</span><div class="skill-bar"><div class="skill-fill" style="width:80%"></div></div><span class="skill-pct">80%</span></div>
-      <div class="skill-row"><span class="skill-name">Python</span><div class="skill-bar"><div class="skill-fill" style="width:65%"></div></div><span class="skill-pct">65%</span></div>
-      <div class="skill-row"><span class="skill-name">C#/.NET</span><div class="skill-bar"><div class="skill-fill" style="width:70%"></div></div><span class="skill-pct">70%</span></div>
-      <div class="skill-row"><span class="skill-name">C++</span><div class="skill-bar"><div class="skill-fill" style="width:60%"></div></div><span class="skill-pct">60%</span></div>
-      <div class="skill-row"><span class="skill-name">Cybersecurity</span><div class="skill-bar"><div class="skill-fill" style="width:68%"></div></div><span class="skill-pct">68%</span></div>
-      <div class="skill-row"><span class="skill-name">Java</span><div class="skill-bar"><div class="skill-fill" style="width:60%"></div></div><span class="skill-pct">60%</span></div>
-    </div>
+    <div class="skills-block" id="skills-block"></div>
   </div>
 </div></section>
 
@@ -255,7 +242,7 @@
 </div></section>
 
 <footer>
-  <p>Built with precision — <span id="footer-name">Portfolio</span> © <?= date('Y') ?> &nbsp;|&nbsp; <a id="footer-github" href="#">GitHub</a> &nbsp;|&nbsp; <a href="/admin/">Admin</a></p>
+  <p>PHP · MySQL · Vanilla JS · CSS3 &nbsp;|&nbsp; <span id="footer-name">Portfolio</span> © <?= date('Y') ?> &nbsp;|&nbsp; <a id="footer-github" href="#">GitHub</a></p>
 </footer>
 
 <!-- PROJECT DETAIL MODAL -->
@@ -263,11 +250,15 @@
   <div class="proj-detail">
     <button class="proj-detail-close" id="proj-detail-close">✕</button>
     <div class="proj-carousel" id="proj-carousel">
-      <div class="carousel-img-wrap"><img id="carousel-img" src="" alt=""></div>
-      <button class="carousel-btn prev hidden" id="carousel-prev">&#8249;</button>
-      <button class="carousel-btn next hidden" id="carousel-next">&#8250;</button>
-      <div class="carousel-dots" id="carousel-dots"></div>
-      <div class="carousel-counter" id="carousel-counter"></div>
+      <div class="carousel-img-wrap">
+        <img id="carousel-img" src="" alt="">
+        <button class="carousel-btn prev hidden" id="carousel-prev">&#8249;</button>
+        <button class="carousel-btn next hidden" id="carousel-next">&#8250;</button>
+      </div>
+      <div class="carousel-bar">
+        <div class="carousel-dots" id="carousel-dots"></div>
+        <div class="carousel-counter" id="carousel-counter"></div>
+      </div>
     </div>
     <div class="proj-detail-body">
       <div class="proj-detail-meta">
@@ -290,14 +281,27 @@ let allProjectsData = [];
 
 // ── Load settings & projects ────────────────────────────────
 async function init() {
-  const [settings, projects] = await Promise.all([
+  const [settings, projects, skillGroups] = await Promise.all([
     fetch(`${API}/settings/`).then(r => r.json()).catch(() => ({})),
     fetch(`${API}/projects/`).then(r => r.json()).catch(() => []),
+    fetch(`${API}/skills/`).then(r => r.json()).catch(() => []),
   ]);
   siteSettings = settings;
   allProjectsData = projects;
   applySettings(settings, projects.length);
   renderProjects(projects);
+  renderSkills(skillGroups);
+}
+
+function renderSkills(groups) {
+  const el = document.getElementById('skills-block');
+  if (!groups.length) { el.innerHTML = ''; return; }
+  el.innerHTML = groups.map(g => `
+    <div>
+      <div class="skill-group-label">${esc(g.label)}</div>
+      <div class="skill-tags">${(g.skills||[]).map(s=>`<span class="skill-tag">${esc(s)}</span>`).join('')}</div>
+    </div>
+  `).join('');
 }
 
 function applySettings(s, projectCount) {
@@ -333,7 +337,8 @@ function applySettings(s, projectCount) {
   document.getElementById('c-location').textContent = s.location || '—';
 
   const bioEl = document.getElementById('about-text');
-  bioEl.innerHTML = `<p>${esc(s.bio || '')}</p><div style="margin-top:1.5rem"><a href="#contact" class="btn-secondary">Get in Touch →</a></div>`;
+  const bioParagraphs = (s.bio || '').split(/\n\n+/).filter(Boolean).map(p => `<p>${renderDesc(p)}</p>`).join('');
+  bioEl.innerHTML = (bioParagraphs || '<p></p>') + '<div style="margin-top:1.5rem"><a href="#contact" class="btn-secondary">Get in Touch →</a></div>';
 
   const resumeBtn = document.getElementById('cta-resume');
   if (s.resume_url) {
@@ -343,7 +348,10 @@ function applySettings(s, projectCount) {
     resumeBtn.style.display = 'none';
   }
 
-  startTyped(s.role || 'Developer');
+  const tickerItems = s.ticker_items
+    ? s.ticker_items.split('\n').map(t => t.trim()).filter(Boolean)
+    : [s.role || 'Developer'];
+  startTyped(tickerItems);
 }
 
 function renderProjects(projects) {
@@ -369,7 +377,7 @@ function renderProjects(projects) {
         ${p.year ? `<span class="card-year">${esc(String(p.year))}</span>` : ''}
       </div>
       <div class="card-title">${esc(p.title)}</div>
-      <div class="card-desc">${esc(shortDesc)}</div>
+      <div class="card-desc">${renderDesc(shortDesc)}</div>
       <div class="card-tags">${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="card-footer" onclick="event.stopPropagation()">
         ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" class="gh-link">⌥ GitHub →</a>` : '<span></span>'}
@@ -380,8 +388,8 @@ function renderProjects(projects) {
 }
 
 // ── Typed effect ─────────────────────────────────────────────
-function startTyped(baseRole) {
-  const roles = [baseRole, 'WordPress Developer', 'Cybersecurity Enthusiast', 'Ceramics Instructor', 'Open Source Builder'];
+function startTyped(roles) {
+  if (!roles.length) roles = ['Developer'];
   let ri = 0, ci = 0, del = false;
   const el = document.getElementById('typed-role');
   function tick() {
@@ -400,8 +408,17 @@ function esc(s) {
 
 function renderDesc(text) {
   if (!text) return '';
-  // esc() runs first so no HTML injection is possible, then ** ** → bold
-  return esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--text);font-weight:600">$1</strong>');
+  let h = esc(text);
+  // headings
+  h = h.replace(/^# (.+)$/gm,  '<span style="display:block;color:var(--amber);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin:1.2rem 0 0.4rem">$1</span>');
+  h = h.replace(/^## (.+)$/gm, '<span style="display:block;color:var(--text);font-size:0.84rem;font-weight:600;margin:0.9rem 0 0.3rem">$1</span>');
+  // bold+italic, bold, italic
+  h = h.replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  h = h.replace(/\*\*([^*\n]+)\*\*/g,     '<strong style="color:var(--text);font-weight:600">$1</strong>');
+  h = h.replace(/\*([^*\n]+)\*/g,         '<em>$1</em>');
+  // links [text](url)
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:none">$1</a>');
+  return h;
 }
 
 // ── Project detail modal & carousel ─────────────────────────

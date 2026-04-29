@@ -53,6 +53,14 @@ CREATE TABLE IF NOT EXISTS project_images (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+-- Skill groups (About section)
+CREATE TABLE IF NOT EXISTS skill_groups (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    label      VARCHAR(255) NOT NULL,
+    skills     TEXT,
+    sort_order INT DEFAULT 0
+);
+
 -- Site settings (key-value)
 CREATE TABLE IF NOT EXISTS settings (
     `key`       VARCHAR(100) PRIMARY KEY,

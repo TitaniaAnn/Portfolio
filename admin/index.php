@@ -99,6 +99,10 @@ if (!$admin) {
   .tbl-btn:hover{border-color:var(--amber);color:var(--amber)}
   .tbl-btn.del:hover{border-color:var(--red);color:var(--red)}
   .empty-row td{text-align:center;color:var(--muted);padding:3rem}
+  .drag-handle{cursor:grab;color:var(--border);font-size:1rem;padding:0.9rem 0.5rem;user-select:none;transition:color 0.2s}
+  .drag-handle:hover{color:var(--muted)}
+  .proj-table tr.dragging td{opacity:0.35}
+  .proj-table tr.drag-over td{border-top:2px solid var(--amber)}
 
   /* TOAST */
   .toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:var(--bg3);border:1px solid var(--green);color:var(--green);font-size:0.75rem;padding:0.7rem 1rem;pointer-events:none;animation:toastIn 0.25s ease}
@@ -130,6 +134,8 @@ if (!$admin) {
   .img-thumb-star:hover{color:var(--amber)}
   .img-thumb.is-summary{outline:2px solid var(--amber)}
   .img-thumb.is-summary .img-thumb-star{color:var(--amber)}
+  .img-thumb[draggable]{cursor:grab}
+  .img-thumb.img-drag-over{outline:2px solid var(--amber);opacity:0.6}
 </style>
 </head>
 <body>
@@ -158,6 +164,7 @@ if (!$admin) {
     <div class="nav-section">Content</div>
     <button class="nav-item active" onclick="showPanel('projects')"><span class="nav-icon">◈</span> Projects</button>
     <button class="nav-item" onclick="showPanel('add-project')"><span class="nav-icon">＋</span> Add Project</button>
+    <button class="nav-item" onclick="showPanel('skills')"><span class="nav-icon">◧</span> Skills</button>
     <div class="nav-section">Site</div>
     <button class="nav-item" onclick="showPanel('settings')"><span class="nav-icon">⚙</span> Settings</button>
     <button class="nav-item" onclick="showPanel('resume')"><span class="nav-icon">▤</span> Resume</button>
@@ -184,6 +191,7 @@ if (!$admin) {
       <table class="proj-table">
         <thead>
           <tr>
+            <th></th>
             <th>Title</th>
             <th>Language</th>
             <th>Status</th>
@@ -192,7 +200,7 @@ if (!$admin) {
           </tr>
         </thead>
         <tbody id="proj-tbody">
-          <tr class="empty-row"><td colspan="5">Loading...</td></tr>
+          <tr class="empty-row"><td colspan="6">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -215,6 +223,7 @@ if (!$admin) {
         <div class="form-group full">
           <label>Full Description <span class="req">*</span></label>
           <textarea id="ap-desc" rows="4" placeholder="Detailed description shown in the project detail view"></textarea>
+          <div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div>
         </div>
         <div class="form-group">
           <label>Primary Language <span class="req">*</span></label>
@@ -266,6 +275,26 @@ if (!$admin) {
       </div>
     </div>
 
+    <!-- ── SKILLS ── -->
+    <div class="panel" id="panel-skills">
+      <div class="panel-header">
+        <div class="panel-title">Skills</div>
+        <div class="panel-sub">Manage the grouped skill tags shown in the About section</div>
+      </div>
+      <div id="skill-groups-list" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:2rem"></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.2rem">
+        <div style="font-size:0.63rem;color:var(--amber);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem">Add Group</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Group Label <span class="req">*</span></label><input type="text" id="sg-label" placeholder="e.g. Mobile &amp; Frontend"></div>
+          <div class="form-group"><label>Sort Order</label><input type="text" id="sg-sort" value="0"><div class="hint">Lower = appears first</div></div>
+          <div class="form-group full"><label>Skills <span class="req">*</span></label><input type="text" id="sg-skills" placeholder="Flutter, Dart, React"><div class="hint">Comma-separated</div></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save" onclick="addSkillGroup()">＋ Add Group</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── SETTINGS ── -->
     <div class="panel" id="panel-settings">
       <div class="panel-header">
@@ -282,6 +311,11 @@ if (!$admin) {
         <div class="form-group"><label>Location</label><input type="text" id="s-location" placeholder="San Francisco, CA"></div>
         <div class="form-group"><label>Tagline</label><input type="text" id="s-tagline" placeholder="Building great software, one commit at a time"></div>
         <div class="form-group"><label>Years of Experience</label><input type="text" id="s-years" placeholder="5+"></div>
+        <div class="form-group full">
+          <label>Ticker Items</label>
+          <textarea id="s-ticker" rows="5" placeholder="Full-Stack Developer&#10;WordPress Developer&#10;Ceramics Instructor"></textarea>
+          <div class="hint">One item per line. Cycles through these in the hero typed effect.</div>
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn-save" onclick="saveSettings()">💾 Save Settings</button>
@@ -352,7 +386,7 @@ if (!$admin) {
       <div class="form-grid">
         <div class="form-group full"><label>Title <span class="req">*</span></label><input type="text" id="edit-title"></div>
         <div class="form-group full"><label>Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
-        <div class="form-group full"><label>Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea></div>
+        <div class="form-group full"><label>Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div></div>
         <div class="form-group"><label>Language <span class="req">*</span></label>
           <input type="text" id="edit-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
@@ -377,6 +411,26 @@ if (!$admin) {
       <div class="form-actions">
         <button class="btn-save" onclick="saveEdit()">💾 Save Changes</button>
         <button class="btn-reset" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SKILL GROUP EDIT MODAL -->
+<div class="modal-overlay" id="skill-modal" onclick="handleSkillModalClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Skill Group</div>
+      <button class="modal-close" onclick="closeSkillModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sk-id">
+      <div class="form-group"><label>Group Label <span class="req">*</span></label><input type="text" id="sk-label"></div>
+      <div class="form-group"><label>Sort Order</label><input type="text" id="sk-sort"><div class="hint">Lower = appears first</div></div>
+      <div class="form-group"><label>Skills</label><input type="text" id="sk-skills"><div class="hint">Comma-separated</div></div>
+      <div class="form-actions">
+        <button class="btn-save" onclick="saveSkillGroup()">💾 Save Changes</button>
+        <button class="btn-reset" onclick="closeSkillModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -426,19 +480,21 @@ async function loadSettings() {
   document.getElementById('s-github').value   = s.github   || '';
   document.getElementById('s-linkedin').value = s.linkedin || '';
   document.getElementById('s-location').value = s.location || '';
-  document.getElementById('s-tagline').value  = s.tagline  || '';
-  document.getElementById('s-years').value    = s.years_exp|| '';
+  document.getElementById('s-tagline').value  = s.tagline     || '';
+  document.getElementById('s-years').value    = s.years_exp   || '';
+  document.getElementById('s-ticker').value   = s.ticker_items || '';
 }
 
 // ── Render table ─────────────────────────────────────────────
 function renderTable(projects) {
   const tbody = document.getElementById('proj-tbody');
   if (!projects.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No projects yet — add one!</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No projects yet — add one!</td></tr>';
     return;
   }
   tbody.innerHTML = projects.map(p => `
-    <tr>
+    <tr draggable="true" data-id="${p.id}">
+      <td class="drag-handle" title="Drag to reorder">⠿</td>
       <td><strong>${esc(p.title)}</strong></td>
       <td><span class="proj-lang-badge">${esc(p.language)}</span></td>
       <td><span class="status-badge ${esc(p.status)}">${esc(p.status)}</span></td>
@@ -454,6 +510,7 @@ function renderTable(projects) {
       </td>
     </tr>
   `).join('');
+  initDragDrop();
 }
 
 function updateCounts(projects) {
@@ -500,17 +557,49 @@ function removeProjectImage(prefix, i) {
 }
 
 function renderImageGallery(prefix) {
-  document.getElementById(`${prefix}-img-gallery`).innerHTML =
-    projectImages[prefix].map((url, i) => {
-      const isSummary = projectSummaryImage[prefix] === url;
-      return `
-        <div class="img-thumb${isSummary ? ' is-summary' : ''}">
-          <img src="${url}" alt="">
-          <button type="button" class="img-thumb-del" onclick="removeProjectImage('${prefix}',${i})">✕</button>
-          <button type="button" class="img-thumb-star" onclick="setSummaryImage('${prefix}',${i})" title="${isSummary ? 'Summary image (click to unset)' : 'Set as card summary image'}">${isSummary ? '★' : '☆'}</button>
-        </div>
-      `;
-    }).join('');
+  const gallery = document.getElementById(`${prefix}-img-gallery`);
+  gallery.innerHTML = projectImages[prefix].map((url, i) => {
+    const isSummary = projectSummaryImage[prefix] === url;
+    return `
+      <div class="img-thumb${isSummary ? ' is-summary' : ''}" draggable="true" data-index="${i}">
+        <img src="${url}" alt="">
+        <button type="button" class="img-thumb-del" onclick="removeProjectImage('${prefix}',${i})">✕</button>
+        <button type="button" class="img-thumb-star" onclick="setSummaryImage('${prefix}',${i})" title="${isSummary ? 'Summary image (click to unset)' : 'Set as card summary image'}">${isSummary ? '★' : '☆'}</button>
+      </div>
+    `;
+  }).join('');
+  initGalleryDragDrop(prefix, gallery);
+}
+
+function initGalleryDragDrop(prefix, gallery) {
+  let dragSrc = null;
+  gallery.querySelectorAll('.img-thumb').forEach(thumb => {
+    thumb.addEventListener('dragstart', function(e) {
+      dragSrc = this;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => this.style.opacity = '0.35', 0);
+    });
+    thumb.addEventListener('dragend', function() {
+      this.style.opacity = '';
+      gallery.querySelectorAll('.img-thumb').forEach(t => t.classList.remove('img-drag-over'));
+    });
+    thumb.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      gallery.querySelectorAll('.img-thumb').forEach(t => t.classList.remove('img-drag-over'));
+      if (this !== dragSrc) this.classList.add('img-drag-over');
+    });
+    thumb.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragSrc || this === dragSrc) return;
+      const srcIdx  = parseInt(dragSrc.dataset.index);
+      const destIdx = parseInt(this.dataset.index);
+      const imgs = projectImages[prefix];
+      const [moved] = imgs.splice(srcIdx, 1);
+      imgs.splice(destIdx, 0, moved);
+      renderImageGallery(prefix);
+    });
+  });
 }
 
 // ── Add project ──────────────────────────────────────────────
@@ -631,12 +720,62 @@ async function saveSettings() {
     github:   document.getElementById('s-github').value.trim(),
     linkedin: document.getElementById('s-linkedin').value.trim(),
     location: document.getElementById('s-location').value.trim(),
-    tagline:  document.getElementById('s-tagline').value.trim(),
-    years_exp:document.getElementById('s-years').value.trim(),
+    tagline:      document.getElementById('s-tagline').value.trim(),
+    years_exp:    document.getElementById('s-years').value.trim(),
+    ticker_items: document.getElementById('s-ticker').value.trim(),
   };
   const res = await fetch(`${API}/settings/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
   if (res.ok) toast('Settings saved!');
   else toast('Error saving settings', true);
+}
+
+// ── Drag-and-drop reorder ────────────────────────────────────
+function initDragDrop() {
+  const tbody = document.getElementById('proj-tbody');
+  let dragSrc = null;
+
+  tbody.querySelectorAll('tr[data-id]').forEach(row => {
+    row.addEventListener('dragstart', function(e) {
+      dragSrc = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      if (this !== dragSrc) this.classList.add('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragSrc || this === dragSrc) return;
+      const srcId  = parseInt(dragSrc.dataset.id);
+      const destId = parseInt(this.dataset.id);
+      const srcIdx  = allProjects.findIndex(p => p.id === srcId);
+      const destIdx = allProjects.findIndex(p => p.id === destId);
+      const [moved] = allProjects.splice(srcIdx, 1);
+      allProjects.splice(destIdx, 0, moved);
+      allProjects.forEach((p, i) => p.sort_order = i);
+      renderTable(allProjects);
+      updateCounts(allProjects);
+      saveOrder();
+    });
+  });
+}
+
+async function saveOrder() {
+  const payload = allProjects.map((p, i) => ({ id: p.id, sort_order: i }));
+  const res = await fetch(`${API}/projects/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) toast('Order saved');
+  else toast('Error saving order', true);
 }
 
 // ── Toast ────────────────────────────────────────────────────
@@ -661,6 +800,87 @@ function showPanelById(name) {
     if (n.getAttribute('onclick')?.includes(`'${name}'`)) n.classList.add('active');
   });
 }
+
+// ── Skills ───────────────────────────────────────────────────
+let allSkillGroups = [];
+
+async function loadSkills() {
+  const res = await fetch(`${API}/skills/`);
+  allSkillGroups = await res.json();
+  renderSkillGroups();
+}
+
+function renderSkillGroups() {
+  const list = document.getElementById('skill-groups-list');
+  if (!allSkillGroups.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.78rem;padding:0.5rem 0">No skill groups yet — add one below.</div>';
+    return;
+  }
+  list.innerHTML = allSkillGroups.map(g => `
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem 1.2rem;display:flex;align-items:flex-start;gap:1rem">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);margin-bottom:0.5rem">${esc(g.label)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
+          ${(g.skills||[]).map(s=>`<span style="font-size:0.68rem;color:var(--muted);border:1px solid var(--border);padding:0.15rem 0.5rem">${esc(s)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="tbl-actions">
+        <button class="tbl-btn" onclick="openSkillEdit(${g.id})">Edit</button>
+        <button class="tbl-btn del" onclick="deleteSkillGroup(${g.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSkillEdit(id) {
+  const g = allSkillGroups.find(x => x.id === id);
+  if (!g) return;
+  document.getElementById('sk-id').value     = g.id;
+  document.getElementById('sk-label').value  = g.label;
+  document.getElementById('sk-sort').value   = g.sort_order ?? 0;
+  document.getElementById('sk-skills').value = (g.skills||[]).join(', ');
+  document.getElementById('skill-modal').classList.add('open');
+}
+
+async function saveSkillGroup() {
+  const id   = document.getElementById('sk-id').value;
+  const body = {
+    label:      document.getElementById('sk-label').value.trim(),
+    skills:     document.getElementById('sk-skills').value.split(',').map(s=>s.trim()).filter(Boolean),
+    sort_order: parseInt(document.getElementById('sk-sort').value) || 0,
+  };
+  if (!body.label) { toast('Label is required', true); return; }
+  const res = await fetch(`${API}/skills/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (res.ok) { closeSkillModal(); toast('Skill group updated!'); await loadSkills(); }
+  else toast('Error saving', true);
+}
+
+async function addSkillGroup() {
+  const body = {
+    label:      document.getElementById('sg-label').value.trim(),
+    skills:     document.getElementById('sg-skills').value.split(',').map(s=>s.trim()).filter(Boolean),
+    sort_order: parseInt(document.getElementById('sg-sort').value) || 0,
+  };
+  if (!body.label) { toast('Label is required', true); return; }
+  const res = await fetch(`${API}/skills/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (res.ok) {
+    document.getElementById('sg-label').value  = '';
+    document.getElementById('sg-skills').value = '';
+    document.getElementById('sg-sort').value   = '0';
+    toast('Skill group added!');
+    await loadSkills();
+  } else toast('Error adding', true);
+}
+
+async function deleteSkillGroup(id) {
+  if (!confirm('Delete this skill group?')) return;
+  const res = await fetch(`${API}/skills/?id=${id}`, { method:'DELETE' });
+  if (res.ok) { toast('Deleted'); await loadSkills(); }
+  else toast('Error deleting', true);
+}
+
+function closeSkillModal() { document.getElementById('skill-modal').classList.remove('open'); }
+function handleSkillModalClick(e) { if (e.target === document.getElementById('skill-modal')) closeSkillModal(); }
 
 // ── Resume ───────────────────────────────────────────────────
 async function loadResume() {
@@ -696,6 +916,7 @@ async function uploadResume(input) {
 // ── Init ─────────────────────────────────────────────────────
 loadProjects();
 loadSettings();
+loadSkills();
 loadResume();
 </script>
 </body>

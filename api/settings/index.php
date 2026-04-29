@@ -21,7 +21,7 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     require_admin();
     $b = get_json_body();
-    $allowed = ['name','role','email','github','linkedin','location','tagline','years_exp','bio'];
+    $allowed = ['name','role','email','github','linkedin','location','tagline','years_exp','bio','ticker_items'];
     $stmt = db()->prepare('INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
     foreach ($allowed as $key) {
         if (array_key_exists($key, $b)) {
