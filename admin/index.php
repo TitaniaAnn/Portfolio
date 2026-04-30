@@ -258,7 +258,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
         <div class="form-group full">
           <label for="ap-desc">Full Description <span class="req">*</span></label>
           <textarea id="ap-desc" rows="4" placeholder="Detailed description shown in the project detail view"></textarea>
-          <div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div>
+          <div class="hint">Markdown: **bold** · *italic* · `code` · ```block``` · [text](url) · # Heading · ## Sub-heading</div>
         </div>
         <div class="form-group">
           <label for="ap-lang">Primary Language <span class="req">*</span></label>
@@ -421,7 +421,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
       <div class="form-grid">
         <div class="form-group full"><label for="edit-title">Title <span class="req">*</span></label><input type="text" id="edit-title"></div>
         <div class="form-group full"><label for="edit-short-desc">Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
-        <div class="form-group full"><label for="edit-desc">Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div></div>
+        <div class="form-group full"><label for="edit-desc">Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · `code` · ```block``` · [text](url) · # Heading · ## Sub-heading</div></div>
         <div class="form-group"><label for="edit-lang">Language <span class="req">*</span></label>
           <input type="text" id="edit-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>

@@ -189,6 +189,12 @@
   .proj-detail-desc a { color: var(--amber); text-decoration: none; }
   .proj-detail-desc h3 { color: var(--amber); font-size: 0.88rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 1.2rem 0 0.4rem; font-family: var(--mono); }
   .proj-detail-desc h4 { color: var(--text); font-size: 0.84rem; font-weight: 600; margin: 0.9rem 0 0.3rem; font-family: var(--mono); }
+
+  /* Code formatting — applies anywhere renderDesc output appears */
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--bg3); border: 1px solid var(--border); padding: 0.05em 0.35em; color: var(--text); border-radius: 2px; }
+  pre  { font-family: var(--mono); background: var(--bg3); border: 1px solid var(--border); padding: 0.8rem 1rem; margin: 0.8rem 0; overflow-x: auto; white-space: pre; line-height: 1.55; }
+  pre code { background: none; border: none; padding: 0; font-size: 0.78rem; color: var(--text); }
+  .proj-detail-desc pre, .about-text pre, .card-desc pre { white-space: pre; }
   .proj-detail-links { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1.2rem; border-top:1px solid var(--border); align-items:center; }
   @media(max-width:600px) { .carousel-img-wrap img { height:240px; } .proj-detail-body { padding:1rem 1.2rem 1.5rem; } }
 
@@ -427,24 +433,44 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Render a small markdown-like subset to HTML. Order matters: links first
-// (so URLs are not consumed by the asterisk patterns), then bold-italic /
-// bold / italic, then headings (line-anchored). All input is escaped first
-// so raw HTML is impossible — even though only the admin can write content.
+// Render a small markdown-like subset to HTML. All input is escaped first
+// so raw HTML is impossible. Code blocks and inline code are stashed
+// behind placeholders before any other rule runs, so markdown characters
+// inside code (like * or [) survive untouched.
 function renderDesc(text) {
   if (!text) return '';
   let h = esc(text);
-  // Links [text](url) — reserve before bold so brackets/parens don't collide
+
+  // Stash each protected region so subsequent rules can't see it.
+  const stash = [];
+  const place = (html) => {
+    stash.push(html);
+    return `@@CODE${stash.length - 1}@@`;
+  };
+
+  // Fenced code blocks: ```optional-lang\n...\n```
+  h = h.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_, lang, body) => {
+    body = body.replace(/\n+$/, '');
+    const cls = lang ? ` class="lang-${lang}"` : '';
+    return place(`<pre><code${cls}>${body}</code></pre>`);
+  });
+  // Inline code: `...` (single line)
+  h = h.replace(/`([^`\n]+)`/g, (_, body) => place(`<code>${body}</code>`));
+
+  // Links [text](url) — before bold so brackets/parens don't collide
   h = h.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   // Bold-italic ***x*** before bold/italic to win the longest match
   h = h.replace(/\*\*\*([^*\n]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
   // Bold **x**
   h = h.replace(/\*\*([^*\n]+?)\*\*/g,     '<strong>$1</strong>');
-  // Italic *x* — use lookarounds to avoid matching inside already-rendered <strong>
+  // Italic *x* — lookarounds avoid matching inside already-rendered <strong>
   h = h.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
   // Headings (line-anchored)
   h = h.replace(/^## (.+)$/gm, '<h4>$1</h4>');
   h = h.replace(/^# (.+)$/gm,  '<h3>$1</h3>');
+
+  // Restore the stashed code regions.
+  h = h.replace(/@@CODE(\d+)@@/g, (_, i) => stash[parseInt(i, 10)]);
   return h;
 }
 
