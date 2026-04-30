@@ -516,7 +516,13 @@ async function apiFetch(path, opts = {}) {
   const text = await res.text();
   if (!text) return null;
   try { return JSON.parse(text); }
-  catch (e) { throw new Error('Invalid JSON response'); }
+  catch (e) {
+    // Surface the first chunk of the bad body so the cause is debuggable
+    // (PHP warning prefix, stray BOM, HTML error page, etc.).
+    const preview = text.slice(0, 160).replace(/\s+/g, ' ').trim();
+    console.error('Bad JSON from', path, '— first 160 chars:', preview);
+    throw new Error('Invalid JSON: ' + preview);
+  }
 }
 
 // ── Toast ────────────────────────────────────────────────────
