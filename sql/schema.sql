@@ -1,6 +1,10 @@
 -- ============================================================
 -- Portfolio Database Schema
 -- ============================================================
+--
+-- This file is the *target* schema (what a fresh install should look like).
+-- Existing installs are upgraded by /admin/update.php which runs the
+-- migrations defined in admin/update.php.
 
 CREATE DATABASE IF NOT EXISTS bfpcdjmy_programming CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE bfpcdjmy_programming;
@@ -15,15 +19,17 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sessions
+-- Sessions (also stores per-session CSRF token for double-submit validation)
 CREATE TABLE IF NOT EXISTS sessions (
     id          VARCHAR(128) PRIMARY KEY,
     admin_id    INT NOT NULL,
+    csrf_token  VARCHAR(128) NOT NULL DEFAULT '',
     ip          VARCHAR(64),
     user_agent  TEXT,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at  DATETIME NOT NULL,
-    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE,
+    INDEX idx_sessions_expires (expires_at)
 );
 
 -- Projects
@@ -41,7 +47,8 @@ CREATE TABLE IF NOT EXISTS projects (
     sort_order        INT DEFAULT 0,
     year              YEAR NULL,
     created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_projects_sort (sort_order)
 );
 
 -- Project images (one-to-many)
@@ -50,7 +57,8 @@ CREATE TABLE IF NOT EXISTS project_images (
     project_id  INT NOT NULL,
     url         VARCHAR(512) NOT NULL,
     sort_order  INT DEFAULT 0,
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_project_images_project (project_id)
 );
 
 -- Skill groups (About section)
@@ -58,7 +66,8 @@ CREATE TABLE IF NOT EXISTS skill_groups (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     label      VARCHAR(255) NOT NULL,
     skills     TEXT,
-    sort_order INT DEFAULT 0
+    sort_order INT DEFAULT 0,
+    INDEX idx_skill_groups_sort (sort_order)
 );
 
 -- Site settings (key-value)
@@ -66,6 +75,18 @@ CREATE TABLE IF NOT EXISTS settings (
     `key`       VARCHAR(100) PRIMARY KEY,
     `value`     TEXT,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Audit log (security-relevant events)
+CREATE TABLE IF NOT EXISTS audit_log (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    admin_id   INT NULL,
+    action     VARCHAR(64) NOT NULL,
+    detail     VARCHAR(1024) NULL,
+    ip         VARCHAR(64) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_log_created (created_at),
+    INDEX idx_audit_log_admin   (admin_id)
 );
 
 -- Seed default settings
@@ -90,9 +111,3 @@ INSERT INTO projects (title, description, language, tags, github_url, demo_url, 
   ('Project Alpha', 'A high-performance REST API with real-time capabilities built on Node.js and PostgreSQL.', 'TypeScript', 'Node.js,PostgreSQL,REST', 'https://github.com', '', 'active', 1),
   ('DataSync CLI', 'Command-line tool for bidirectional database sync across environments with conflict resolution.', 'Go', 'CLI,Database,DevOps', 'https://github.com', '', 'active', 2),
   ('ReactFlow UI', 'Component library of 40+ accessible, animated React components with Storybook documentation.', 'JavaScript', 'React,Storybook,A11y', 'https://github.com', 'https://example.com', 'active', 3);
--- Migration for existing installs:
--- ALTER TABLE projects DROP COLUMN IF EXISTS image_url;
--- CREATE TABLE IF NOT EXISTS project_images (id INT AUTO_INCREMENT PRIMARY KEY, project_id INT NOT NULL, url VARCHAR(512) NOT NULL, sort_order INT DEFAULT 0, FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE);
--- ALTER TABLE projects ADD COLUMN short_description TEXT AFTER title;
--- ALTER TABLE projects ADD COLUMN summary_image VARCHAR(512) AFTER demo_url;
--- ALTER TABLE projects ADD COLUMN year YEAR NULL AFTER sort_order;

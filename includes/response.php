@@ -11,12 +11,14 @@ function json_response(mixed $data, int $code = 200): never {
 
 function cors_headers(): void {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    // Only allow same origin or your explicit domain
-    if ($origin === APP_URL || str_starts_with($origin, APP_URL)) {
+    // Strict equality — `str_starts_with($origin, APP_URL)` would let
+    // `https://cynthia-brown.com.attacker.com` slip through.
+    if ($origin === APP_URL) {
         header("Access-Control-Allow-Origin: $origin");
+        header('Vary: Origin');
         header('Access-Control-Allow-Credentials: true');
-        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, X-Requested-With, X-CSRF-Token');
     }
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);

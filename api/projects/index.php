@@ -3,12 +3,14 @@
 // GET    /api/projects/         — list all (public)
 // POST   /api/projects/         — create (admin)
 // PUT    /api/projects/?id=N    — update (admin)
+// PATCH  /api/projects/         — bulk reorder (admin)
 // DELETE /api/projects/?id=N    — delete (admin)
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/response.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 cors_headers();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -18,7 +20,6 @@ $id     = isset($_GET['id']) ? (int)$_GET['id'] : null;
 if ($method === 'GET') {
     $rows = db()->query('SELECT * FROM projects ORDER BY sort_order ASC, created_at DESC')->fetchAll();
 
-    // Fetch all images in one query and group by project_id
     $imgRows = db()->query('SELECT project_id, url FROM project_images ORDER BY project_id, sort_order ASC, id ASC')->fetchAll();
     $imgMap = [];
     foreach ($imgRows as $img) {
@@ -26,51 +27,49 @@ if ($method === 'GET') {
     }
 
     foreach ($rows as &$r) {
-        $r['tags']   = $r['tags'] ? array_map('trim', explode(',', $r['tags'])) : [];
+        $r['tags']   = csv_to_array($r['tags']);
         $r['images'] = $imgMap[$r['id']] ?? [];
     }
     json_response($rows);
 }
 
-// ── All write operations require auth ─────────────────────
-require_admin();
+// ── All write operations require auth + CSRF ──────────────
+$admin = require_admin_write();
 
 // ── POST — create ──────────────────────────────────────────
 if ($method === 'POST') {
-    $b = get_json_body();
+    $b      = get_json_body();
     $title  = trim($b['title']  ?? '');
     $desc   = trim($b['description'] ?? '');
     $lang   = trim($b['language'] ?? '');
-    if (!$title || !$desc || !$lang) json_response(['error' => 'title, description, language required'], 422);
+    if ($title === '' || $desc === '' || $lang === '') {
+        json_response(['error' => 'title, description, language required'], 422);
+    }
+    if (strlen($title) > 255 || strlen($lang) > 100) {
+        json_response(['error' => 'Field too long'], 422);
+    }
 
     $shortDesc  = trim($b['short_description'] ?? '');
-    $tags       = implode(',', array_map('trim', (array)($b['tags'] ?? [])));
-    $github     = trim($b['github_url'] ?? '');
-    $demo       = trim($b['demo_url']   ?? '');
-    $summaryImg = !empty(trim($b['summary_image'] ?? '')) ? trim($b['summary_image']) : null;
+    $tags       = implode(',', csv_to_array(is_array($b['tags'] ?? null) ? implode(',', (array)$b['tags']) : ($b['tags'] ?? '')));
+    $github     = clean_url($b['github_url'] ?? '');
+    $demo       = clean_url($b['demo_url']   ?? '');
+    $summaryImg = trim((string)($b['summary_image'] ?? ''));
+    $summaryImg = $summaryImg !== '' ? $summaryImg : null;
     $status     = in_array($b['status'] ?? '', ['active','wip','archived']) ? $b['status'] : 'active';
     $sort       = (int)($b['sort_order'] ?? 0);
     $year       = !empty($b['year']) ? (int)$b['year'] : null;
+
     $stmt = db()->prepare('
         INSERT INTO projects (title, short_description, description, language, tags, github_url, demo_url, summary_image, status, sort_order, year)
         VALUES (?,?,?,?,?,?,?,?,?,?,?)
     ');
-    $stmt->execute([$title, $shortDesc ?: null, $desc, $lang, $tags, $github, $demo, $summaryImg, $status, $sort, $year]);
-    $newId = db()->lastInsertId();
+    $stmt->execute([$title, $shortDesc !== '' ? $shortDesc : null, $desc, $lang, $tags, $github, $demo, $summaryImg, $status, $sort, $year]);
+    $newId = (int) db()->lastInsertId();
 
-    // Insert images
-    if (!empty($b['images'])) {
-        $imgStmt = db()->prepare('INSERT INTO project_images (project_id, url, sort_order) VALUES (?,?,?)');
-        foreach ((array)$b['images'] as $i => $url) {
-            $url = trim($url);
-            if ($url) $imgStmt->execute([$newId, $url, $i]);
-        }
-    }
+    insert_project_images($newId, string_list($b['images'] ?? []));
 
-    $row = db()->query("SELECT * FROM projects WHERE id = $newId")->fetch();
-    $row['tags']   = $row['tags'] ? array_map('trim', explode(',', $row['tags'])) : [];
-    $row['images'] = fetch_images($newId);
-    json_response($row, 201);
+    audit_log('project.create', $admin['id'], "id={$newId} title={$title}");
+    json_response(load_project($newId), 201);
 }
 
 // ── PUT — update ───────────────────────────────────────────
@@ -80,21 +79,34 @@ if ($method === 'PUT') {
 
     $fields = [];
     $params = [];
-
-    $allowed = ['title','short_description','description','language','github_url','demo_url','status','sort_order','year'];
-    foreach ($allowed as $f) {
+    $simpleStrings = ['title','short_description','description','language','status'];
+    foreach ($simpleStrings as $f) {
         if (array_key_exists($f, $b)) {
             $fields[] = "`$f` = ?";
-            $params[] = in_array($f, ['sort_order','year']) ? ((int)$b[$f] ?: null) : (trim($b[$f]) ?: null);
+            $params[] = trim((string)$b[$f]) !== '' ? trim((string)$b[$f]) : null;
+        }
+    }
+    foreach (['github_url','demo_url'] as $f) {
+        if (array_key_exists($f, $b)) {
+            $fields[] = "`$f` = ?";
+            $params[] = clean_url($b[$f]);
+        }
+    }
+    foreach (['sort_order','year'] as $f) {
+        if (array_key_exists($f, $b)) {
+            $fields[] = "`$f` = ?";
+            $params[] = !empty($b[$f]) ? (int)$b[$f] : null;
         }
     }
     if (array_key_exists('tags', $b)) {
+        $tags = is_array($b['tags']) ? implode(',', (array)$b['tags']) : (string)$b['tags'];
         $fields[] = '`tags` = ?';
-        $params[] = implode(',', array_map('trim', (array)$b['tags']));
+        $params[] = implode(',', csv_to_array($tags));
     }
     if (array_key_exists('summary_image', $b)) {
+        $sum = trim((string)$b['summary_image']);
         $fields[] = '`summary_image` = ?';
-        $params[] = !empty(trim($b['summary_image'] ?? '')) ? trim($b['summary_image']) : null;
+        $params[] = $sum !== '' ? $sum : null;
     }
 
     if ($fields) {
@@ -102,32 +114,31 @@ if ($method === 'PUT') {
         db()->prepare('UPDATE projects SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
     }
 
-    // Replace images if provided
     if (array_key_exists('images', $b)) {
         db()->prepare('DELETE FROM project_images WHERE project_id = ?')->execute([$id]);
-        $imgStmt = db()->prepare('INSERT INTO project_images (project_id, url, sort_order) VALUES (?,?,?)');
-        foreach ((array)$b['images'] as $i => $url) {
-            $url = trim($url);
-            if ($url) $imgStmt->execute([$id, $url, $i]);
-        }
+        insert_project_images($id, string_list($b['images']));
     }
 
-    $row = db()->query("SELECT * FROM projects WHERE id = $id")->fetch();
+    $row = load_project($id);
     if (!$row) json_response(['error' => 'Not found'], 404);
-    $row['tags']   = $row['tags'] ? array_map('trim', explode(',', $row['tags'])) : [];
-    $row['images'] = fetch_images($id);
+
+    audit_log('project.update', $admin['id'], "id={$id}");
     json_response($row);
 }
 
 // ── PATCH — bulk reorder ───────────────────────────────────
 if ($method === 'PATCH') {
     $items = get_json_body();
-    $stmt  = db()->prepare('UPDATE projects SET sort_order = ? WHERE id = ?');
-    foreach ((array)$items as $item) {
-        if (isset($item['id'], $item['sort_order'])) {
+    if (!is_array($items)) json_response(['error' => 'expected array'], 422);
+    $stmt = db()->prepare('UPDATE projects SET sort_order = ? WHERE id = ?');
+    $count = 0;
+    foreach ($items as $item) {
+        if (is_array($item) && isset($item['id'], $item['sort_order'])) {
             $stmt->execute([(int)$item['sort_order'], (int)$item['id']]);
+            $count++;
         }
     }
+    audit_log('project.reorder', $admin['id'], "rows={$count}");
     json_response(['success' => true]);
 }
 
@@ -135,14 +146,33 @@ if ($method === 'PATCH') {
 if ($method === 'DELETE') {
     if (!$id) json_response(['error' => 'id required'], 422);
     db()->prepare('DELETE FROM projects WHERE id = ?')->execute([$id]);
+    audit_log('project.delete', $admin['id'], "id={$id}");
     json_response(['success' => true, 'deleted_id' => $id]);
 }
 
 json_response(['error' => 'Method not allowed'], 405);
 
-// ── Helper ──────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────
+function load_project(int $id): ?array {
+    $stmt = db()->prepare('SELECT * FROM projects WHERE id = ?');
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    if (!$row) return null;
+    $row['tags']   = csv_to_array($row['tags']);
+    $row['images'] = fetch_images($id);
+    return $row;
+}
+
 function fetch_images(int $project_id): array {
     $stmt = db()->prepare('SELECT url FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, id ASC');
     $stmt->execute([$project_id]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+function insert_project_images(int $project_id, array $urls): void {
+    if (!$urls) return;
+    $stmt = db()->prepare('INSERT INTO project_images (project_id, url, sort_order) VALUES (?,?,?)');
+    foreach ($urls as $i => $url) {
+        $stmt->execute([$project_id, $url, $i]);
+    }
 }

@@ -32,6 +32,15 @@
     content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
     background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
   }
+
+  /* Visible focus ring for keyboard users on every interactive element. */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  /* Visually-hidden helper for screen reader text */
+  .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
   .cursor { display:inline-block; width:10px; height:1.2em; background:var(--amber); vertical-align:text-bottom; animation:blink 1s step-end infinite; margin-left:2px; }
   @keyframes blink { 50%{opacity:0} }
   @keyframes fadeUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -176,6 +185,10 @@
   .proj-detail-meta { margin-bottom:0.8rem; display:flex; align-items:center; gap:0.4rem; }
   .proj-detail-title { font-family:var(--display); font-size:1.5rem; font-weight:700; margin-bottom:1rem; line-height:1.2; }
   .proj-detail-desc { font-size:0.82rem; color:var(--muted); line-height:1.85; margin-bottom:1.2rem; white-space:pre-wrap; }
+  .proj-detail-desc strong { color: var(--text); font-weight: 600; }
+  .proj-detail-desc a { color: var(--amber); text-decoration: none; }
+  .proj-detail-desc h3 { color: var(--amber); font-size: 0.88rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 1.2rem 0 0.4rem; font-family: var(--mono); }
+  .proj-detail-desc h4 { color: var(--text); font-size: 0.84rem; font-weight: 600; margin: 0.9rem 0 0.3rem; font-family: var(--mono); }
   .proj-detail-links { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1.2rem; border-top:1px solid var(--border); align-items:center; }
   @media(max-width:600px) { .carousel-img-wrap img { height:240px; } .proj-detail-body { padding:1rem 1.2rem 1.5rem; } }
 
@@ -192,7 +205,7 @@
     <a href="#about">About</a>
     <a href="#projects">Projects</a>
     <a href="#contact">Contact</a>
-    <a id="nav-github" href="#" target="_blank">GitHub</a>
+    <a id="nav-github" href="#" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
 
@@ -201,11 +214,11 @@
   <div class="hero-inner">
     <div class="hero-tag">Available for work &nbsp;●&nbsp; Open to collaborations</div>
     <h1 class="hero-name"><span id="hero-name">Loading</span><br><span class="accent" id="hero-name2">...</span></h1>
-    <p class="hero-sub"><span class="typed" id="typed-role"></span><span class="cursor"></span></p>
+    <p class="hero-sub"><span class="typed" id="typed-role"></span><span class="cursor" aria-hidden="true"></span></p>
     <p class="hero-prompt"><span class="pc">$</span><span id="hero-tagline">Loading portfolio data...</span></p>
     <div class="hero-ctas">
       <a href="#projects" class="btn-primary">View Projects →</a>
-      <a id="cta-github" href="#" target="_blank" class="btn-secondary">GitHub Profile</a>
+      <a id="cta-github" href="#" target="_blank" rel="noopener" class="btn-secondary">GitHub Profile</a>
       <a id="cta-resume" href="#" download="resume.pdf" class="btn-secondary" style="display:none">⬇ Resume</a>
     </div>
     <div class="hero-stats">
@@ -233,31 +246,31 @@
 <section id="contact"><div class="section-inner">
   <div class="section-header"><span class="section-num">03</span><h2 class="section-title">Contact</h2><div class="section-line"></div></div>
   <div class="contact-box">
-    <div class="contact-row"><span class="c-icon">✉</span><span class="c-key">email</span><a id="c-email" href="#" class="c-val">—</a></div>
-    <div class="contact-row"><span class="c-icon">⌥</span><span class="c-key">github</span><a id="c-github" href="#" target="_blank" class="c-val">—</a></div>
-    <div class="contact-row"><span class="c-icon">◈</span><span class="c-key">linkedin</span><a id="c-linkedin" href="#" target="_blank" class="c-val">—</a></div>
-    <div class="contact-row"><span class="c-icon">◉</span><span class="c-key">location</span><span id="c-location" class="c-val">—</span></div>
+    <div class="contact-row"><span class="c-icon" aria-hidden="true">✉</span><span class="c-key">email</span><a id="c-email" href="#" class="c-val">—</a></div>
+    <div class="contact-row"><span class="c-icon" aria-hidden="true">⌥</span><span class="c-key">github</span><a id="c-github" href="#" target="_blank" rel="noopener" class="c-val">—</a></div>
+    <div class="contact-row"><span class="c-icon" aria-hidden="true">◈</span><span class="c-key">linkedin</span><a id="c-linkedin" href="#" target="_blank" rel="noopener" class="c-val">—</a></div>
+    <div class="contact-row"><span class="c-icon" aria-hidden="true">◉</span><span class="c-key">location</span><span id="c-location" class="c-val">—</span></div>
     <div style="margin-top:2rem"><a id="c-email-btn" href="#" class="btn-primary">Send a Message →</a></div>
   </div>
 </div></section>
 
 <footer>
-  <p>PHP · MySQL · Vanilla JS · CSS3 &nbsp;|&nbsp; <span id="footer-name">Portfolio</span> © <?= date('Y') ?> &nbsp;|&nbsp; <a id="footer-github" href="#">GitHub</a></p>
+  <p>PHP · MySQL · Vanilla JS · CSS3 &nbsp;|&nbsp; <span id="footer-name">Portfolio</span> © <?= date('Y') ?> &nbsp;|&nbsp; <a id="footer-github" href="#" rel="noopener">GitHub</a></p>
 </footer>
 
 <!-- PROJECT DETAIL MODAL -->
-<div class="proj-detail-overlay" id="proj-detail-overlay">
+<div class="proj-detail-overlay" id="proj-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="pd-title">
   <div class="proj-detail">
-    <button class="proj-detail-close" id="proj-detail-close">✕</button>
+    <button class="proj-detail-close" id="proj-detail-close" type="button" aria-label="Close project details">✕</button>
     <div class="proj-carousel" id="proj-carousel">
       <div class="carousel-img-wrap">
         <img id="carousel-img" src="" alt="">
-        <button class="carousel-btn prev hidden" id="carousel-prev">&#8249;</button>
-        <button class="carousel-btn next hidden" id="carousel-next">&#8250;</button>
+        <button class="carousel-btn prev hidden" id="carousel-prev" type="button" aria-label="Previous image">&#8249;</button>
+        <button class="carousel-btn next hidden" id="carousel-next" type="button" aria-label="Next image">&#8250;</button>
       </div>
       <div class="carousel-bar">
-        <div class="carousel-dots" id="carousel-dots"></div>
-        <div class="carousel-counter" id="carousel-counter"></div>
+        <div class="carousel-dots" id="carousel-dots" role="tablist" aria-label="Project image slides"></div>
+        <div class="carousel-counter" id="carousel-counter" aria-live="polite"></div>
       </div>
     </div>
     <div class="proj-detail-body">
@@ -266,7 +279,7 @@
         <span class="card-status" id="pd-status"></span>
         <span class="card-year" id="pd-year" style="display:none"></span>
       </div>
-      <div class="proj-detail-title" id="pd-title"></div>
+      <h2 class="proj-detail-title" id="pd-title"></h2>
       <div class="proj-detail-desc" id="pd-desc"></div>
       <div class="card-tags" id="pd-tags"></div>
       <div class="proj-detail-links" id="pd-links"></div>
@@ -278,15 +291,23 @@
 const API = '/api';
 let siteSettings = {};
 let allProjectsData = [];
+let currentProject = null;
 
-// ── Load settings & projects ────────────────────────────────
+// ── Network: small wrapper that surfaces parse errors instead of swallowing
+async function apiFetch(path) {
+  const res = await fetch(`${API}${path}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+// ── Init ────────────────────────────────────────────────────
 async function init() {
   const [settings, projects, skillGroups] = await Promise.all([
-    fetch(`${API}/settings/`).then(r => r.json()).catch(() => ({})),
-    fetch(`${API}/projects/`).then(r => r.json()).catch(() => []),
-    fetch(`${API}/skills/`).then(r => r.json()).catch(() => []),
+    apiFetch('/settings/').catch(err => { console.error('settings load failed:', err); return {}; }),
+    apiFetch('/projects/').catch(err => { console.error('projects load failed:', err); return []; }),
+    apiFetch('/skills/').catch(err   => { console.error('skills load failed:',   err); return []; }),
   ]);
-  siteSettings = settings;
+  siteSettings    = settings;
   allProjectsData = projects;
   applySettings(settings, projects.length);
   renderProjects(projects);
@@ -321,7 +342,7 @@ function applySettings(s, projectCount) {
   document.getElementById('nav-github').href  = gh;
   document.getElementById('cta-github').href  = gh;
   document.getElementById('c-github').href    = gh;
-  document.getElementById('c-github').textContent = gh.replace('https://','');
+  document.getElementById('c-github').textContent = gh.replace(/^https?:\/\//, '');
   document.getElementById('footer-github').href   = gh;
   document.getElementById('footer-name').textContent = name;
 
@@ -332,7 +353,7 @@ function applySettings(s, projectCount) {
 
   const li = s.linkedin || '';
   document.getElementById('c-linkedin').href = li || '#';
-  document.getElementById('c-linkedin').textContent = li ? li.replace('https://','') : '—';
+  document.getElementById('c-linkedin').textContent = li ? li.replace(/^https?:\/\//, '') : '—';
 
   document.getElementById('c-location').textContent = s.location || '—';
 
@@ -364,11 +385,11 @@ function renderProjects(projects) {
     const summaryImg = p.summary_image || (p.images && p.images[0]);
     const shortDesc  = p.short_description || p.description;
     return `
-    <div class="project-card" style="animation-delay:${i*0.07}s" onclick="openProjectDetail(${p.id})">
-      <div class="card-corner"></div>
+    <div class="project-card" style="animation-delay:${i*0.07}s" onclick="openProjectDetail(${p.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProjectDetail(${p.id});}">
+      <div class="card-corner" aria-hidden="true"></div>
       ${summaryImg ? `
         <div class="card-image-wrap">
-          <img src="${esc(summaryImg)}" alt="${esc(p.title)}" loading="lazy">
+          <img src="${esc(summaryImg)}" alt="${esc(p.title)} preview" loading="lazy">
           ${p.images && p.images.length > 1 ? `<span class="card-image-count">+${p.images.length - 1} more</span>` : ''}
         </div>` : ''}
       <div>
@@ -380,8 +401,8 @@ function renderProjects(projects) {
       <div class="card-desc">${renderDesc(shortDesc)}</div>
       <div class="card-tags">${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="card-footer" onclick="event.stopPropagation()">
-        ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" class="gh-link">⌥ GitHub →</a>` : '<span></span>'}
-        ${p.demo_url   ? `<a href="${esc(p.demo_url)}"   target="_blank" class="demo-link">Live Demo →</a>` : ''}
+        ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" rel="noopener" class="gh-link">⌥ GitHub →</a>` : '<span></span>'}
+        ${p.demo_url   ? `<a href="${esc(p.demo_url)}"   target="_blank" rel="noopener" class="demo-link">Live Demo →</a>` : ''}
       </div>
     </div>
   `}).join('');
@@ -395,39 +416,47 @@ function startTyped(roles) {
   function tick() {
     const cur = roles[ri];
     if (!del) { el.textContent = cur.slice(0, ++ci); if (ci===cur.length){del=true;setTimeout(tick,1800);return;} }
-    else       { el.textContent = cur.slice(0, --ci); if (ci===0){del=false;ri=(ri+1)%roles.length;} }
+    else      { el.textContent = cur.slice(0, --ci); if (ci===0){del=false;ri=(ri+1)%roles.length;} }
     setTimeout(tick, del ? 42 : 80);
   }
   tick();
 }
 
 function esc(s) {
-  if (!s) return '';
+  if (s === null || s === undefined) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Render a small markdown-like subset to HTML. Order matters: links first
+// (so URLs are not consumed by the asterisk patterns), then bold-italic /
+// bold / italic, then headings (line-anchored). All input is escaped first
+// so raw HTML is impossible — even though only the admin can write content.
 function renderDesc(text) {
   if (!text) return '';
   let h = esc(text);
-  // headings
-  h = h.replace(/^# (.+)$/gm,  '<span style="display:block;color:var(--amber);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin:1.2rem 0 0.4rem">$1</span>');
-  h = h.replace(/^## (.+)$/gm, '<span style="display:block;color:var(--text);font-size:0.84rem;font-weight:600;margin:0.9rem 0 0.3rem">$1</span>');
-  // bold+italic, bold, italic
-  h = h.replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  h = h.replace(/\*\*([^*\n]+)\*\*/g,     '<strong style="color:var(--text);font-weight:600">$1</strong>');
-  h = h.replace(/\*([^*\n]+)\*/g,         '<em>$1</em>');
-  // links [text](url)
-  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:none">$1</a>');
+  // Links [text](url) — reserve before bold so brackets/parens don't collide
+  h = h.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Bold-italic ***x*** before bold/italic to win the longest match
+  h = h.replace(/\*\*\*([^*\n]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold **x**
+  h = h.replace(/\*\*([^*\n]+?)\*\*/g,     '<strong>$1</strong>');
+  // Italic *x* — use lookarounds to avoid matching inside already-rendered <strong>
+  h = h.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // Headings (line-anchored)
+  h = h.replace(/^## (.+)$/gm, '<h4>$1</h4>');
+  h = h.replace(/^# (.+)$/gm,  '<h3>$1</h3>');
   return h;
 }
 
 // ── Project detail modal & carousel ─────────────────────────
 let carouselImages = [];
 let carouselIdx    = 0;
+let lastFocusedBeforeModal = null;
 
 function openProjectDetail(id) {
   const p = allProjectsData.find(x => x.id === id);
   if (!p) return;
+  currentProject = p;
 
   carouselImages = p.images || [];
   carouselIdx    = 0;
@@ -447,32 +476,40 @@ function openProjectDetail(id) {
   if (p.year) { yearEl.textContent = p.year; yearEl.style.display = ''; }
   else yearEl.style.display = 'none';
   document.getElementById('pd-title').textContent = p.title;
-  document.getElementById('pd-desc').innerHTML  = renderDesc(p.description);
+  document.getElementById('pd-desc').innerHTML    = renderDesc(p.description);
   document.getElementById('pd-tags').innerHTML    = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
 
   const links = [];
-  if (p.github_url) links.push(`<a href="${esc(p.github_url)}" target="_blank" class="gh-link">⌥ GitHub →</a>`);
-  if (p.demo_url)   links.push(`<a href="${esc(p.demo_url)}"   target="_blank" class="demo-link">Live Demo →</a>`);
+  if (p.github_url) links.push(`<a href="${esc(p.github_url)}" target="_blank" rel="noopener" class="gh-link">⌥ GitHub →</a>`);
+  if (p.demo_url)   links.push(`<a href="${esc(p.demo_url)}"   target="_blank" rel="noopener" class="demo-link">Live Demo →</a>`);
   document.getElementById('pd-links').innerHTML = links.join('');
 
+  lastFocusedBeforeModal = document.activeElement;
   document.getElementById('proj-detail-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('proj-detail-close').focus(), 30);
 }
 
 function closeProjDetail() {
   document.getElementById('proj-detail-overlay').classList.remove('open');
   document.body.style.overflow = '';
+  if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+    lastFocusedBeforeModal.focus();
+  }
 }
 
-
 function updateCarousel() {
-  document.getElementById('carousel-img').src = carouselImages[carouselIdx] || '';
+  const img = document.getElementById('carousel-img');
+  img.src = carouselImages[carouselIdx] || '';
+  img.alt = currentProject ? `${currentProject.title} screenshot ${carouselIdx + 1} of ${carouselImages.length}` : '';
   const single = carouselImages.length <= 1;
   document.getElementById('carousel-prev').classList.toggle('hidden', single);
   document.getElementById('carousel-next').classList.toggle('hidden', single);
   document.getElementById('carousel-counter').textContent = single ? '' : `${carouselIdx + 1} / ${carouselImages.length}`;
   document.getElementById('carousel-dots').innerHTML = single ? '' :
-    carouselImages.map((_, i) => `<button class="carousel-dot${i===carouselIdx?' active':''}" onclick="goCarousel(${i})"></button>`).join('');
+    carouselImages.map((_, i) =>
+      `<button class="carousel-dot${i===carouselIdx?' active':''}" type="button" role="tab" aria-label="Slide ${i+1} of ${carouselImages.length}" aria-selected="${i===carouselIdx}" onclick="goCarousel(${i})"></button>`
+    ).join('');
 }
 
 function carouselPrev() { carouselIdx = (carouselIdx - 1 + carouselImages.length) % carouselImages.length; updateCarousel(); }

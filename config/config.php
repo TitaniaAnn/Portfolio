@@ -17,6 +17,10 @@ define('APP_SECRET', '');  // paste output of: openssl rand -hex 32
 // ── Session ──────────────────────────────────────────────────
 define('SESSION_LIFETIME', 60 * 60 * 8);  // 8 hours in seconds
 
+// ── Upload limits (bytes) ────────────────────────────────────
+define('UPLOAD_MAX_IMAGE',  5  * 1024 * 1024);   //  5 MB for project images
+define('UPLOAD_MAX_RESUME', 10 * 1024 * 1024);   // 10 MB for the PDF résumé
+
 // ── Whitelisted admin emails ─────────────────────────────────
 // Only these emails can log in to the admin panel
 define('ADMIN_EMAILS', [

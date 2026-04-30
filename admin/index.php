@@ -1,12 +1,14 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/util.php';
 
 $admin = current_admin();
 if (!$admin) {
     header('Location: ' . APP_URL . '/admin/login.php');
     exit;
 }
+$csrfToken = $admin['csrf_token'] ?? '';
 ?>
 
 <!DOCTYPE html>
@@ -14,6 +16,7 @@ if (!$admin) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="<?= htmlspecialchars($csrfToken) ?>">
 <title>Admin Dashboard</title>
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -31,6 +34,11 @@ if (!$admin) {
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh}
   body::before{content:'';position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)}
+
+  /* Reusable focus ring for keyboard users — applied to every interactive element. */
+  button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible{
+    outline:2px solid var(--amber);outline-offset:2px;
+  }
 
   /* TOPBAR */
   .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;background:rgba(13,13,13,0.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
@@ -94,6 +102,8 @@ if (!$admin) {
   .status-badge.active{color:var(--green);border:1px solid var(--green)}
   .status-badge.wip{color:var(--blue);border:1px solid var(--blue)}
   .status-badge.archived{color:var(--muted);border:1px solid var(--border)}
+  .tbl-link-amber{color:var(--amber);text-decoration:none}
+  .tbl-link-blue{color:var(--blue);text-decoration:none}
   .tbl-actions{display:flex;gap:0.4rem}
   .tbl-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:0.6rem;letter-spacing:0.08em;padding:0.25rem 0.5rem;cursor:pointer;text-transform:uppercase;transition:all 0.2s}
   .tbl-btn:hover{border-color:var(--amber);color:var(--amber)}
@@ -109,7 +119,7 @@ if (!$admin) {
   @keyframes toastIn{from{transform:translateY(6px);opacity:0}}
   .toast.err{border-color:var(--red);color:var(--red)}
 
-  /* EDIT MODAL */
+  /* MODAL */
   .modal-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem}
   .modal-overlay.open{display:flex}
   .modal{background:var(--bg2);border:1px solid var(--amber-dim);width:100%;max-width:620px;max-height:90vh;overflow-y:auto}
@@ -135,7 +145,32 @@ if (!$admin) {
   .img-thumb.is-summary{outline:2px solid var(--amber)}
   .img-thumb.is-summary .img-thumb-star{color:var(--amber)}
   .img-thumb[draggable]{cursor:grab}
+  .img-thumb.img-dragging{opacity:0.35}
   .img-thumb.img-drag-over{outline:2px solid var(--amber);opacity:0.6}
+
+  /* SHARED TILE / LIST UTILITIES (used by skills list, resume tile, account tile) */
+  .tile{background:var(--bg2);border:1px solid var(--border);padding:1.2rem}
+  .tile-pad-sm{padding:1rem 1.2rem}
+  .tile-row{display:flex;align-items:flex-start;gap:1rem;background:var(--bg2);border:1px solid var(--border);padding:1rem 1.2rem}
+  .tile-row .tile-body{flex:1;min-width:0}
+  .tile-label-amber{font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);margin-bottom:0.5rem}
+  .tile-tags{display:flex;flex-wrap:wrap;gap:0.35rem}
+  .tile-tag{font-size:0.68rem;color:var(--muted);border:1px solid var(--border);padding:0.15rem 0.5rem}
+  .skill-list{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:2rem}
+  .add-group-tile{background:var(--bg2);border:1px solid var(--border);padding:1.2rem}
+  .add-group-tile-label{font-size:0.63rem;color:var(--amber);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem}
+  .resume-tile{display:flex;align-items:center;justify-content:space-between;max-width:400px;background:var(--bg2);border:1px solid var(--border);padding:1rem}
+  .resume-tile-label{font-size:0.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem}
+  .resume-link{color:var(--amber);font-size:0.8rem;text-decoration:none}
+  .account-tile{background:var(--bg2);border:1px solid var(--border);padding:1.5rem;max-width:400px}
+  .account-row{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem}
+  .account-avatar{width:48px;height:48px;border-radius:50%;border:1px solid var(--border)}
+  .account-name{font-weight:600;margin-bottom:0.2rem}
+  .account-email{font-size:0.72rem;color:var(--muted)}
+  .account-meta{font-size:0.68rem;color:var(--muted);border-top:1px solid var(--border);padding-top:1rem}
+  .account-meta .row{margin-bottom:0.5rem}
+  .account-meta .amber{color:var(--amber)}
+  .account-actions{margin-top:1.2rem}
 </style>
 </head>
 <body>
@@ -149,7 +184,7 @@ if (!$admin) {
   <div class="tb-right">
     <div class="tb-user">
       <?php if ($admin['avatar_url']): ?>
-      <img src="<?= htmlspecialchars($admin['avatar_url']) ?>" class="tb-avatar" alt="">
+      <img src="<?= htmlspecialchars($admin['avatar_url']) ?>" class="tb-avatar" alt="<?= htmlspecialchars($admin['name']) ?> avatar">
       <?php endif; ?>
       <span><?= htmlspecialchars($admin['name']) ?></span>
     </div>
@@ -162,16 +197,16 @@ if (!$admin) {
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="nav-section">Content</div>
-    <button class="nav-item active" onclick="showPanel('projects')"><span class="nav-icon">◈</span> Projects</button>
-    <button class="nav-item" onclick="showPanel('add-project')"><span class="nav-icon">＋</span> Add Project</button>
-    <button class="nav-item" onclick="showPanel('skills')"><span class="nav-icon">◧</span> Skills</button>
+    <button class="nav-item active" type="button" onclick="showPanel('projects', this)"><span class="nav-icon" aria-hidden="true">◈</span> Projects</button>
+    <button class="nav-item" type="button" onclick="showPanel('add-project', this)"><span class="nav-icon" aria-hidden="true">＋</span> Add Project</button>
+    <button class="nav-item" type="button" onclick="showPanel('skills', this)"><span class="nav-icon" aria-hidden="true">◧</span> Skills</button>
     <div class="nav-section">Site</div>
-    <button class="nav-item" onclick="showPanel('settings')"><span class="nav-icon">⚙</span> Settings</button>
-    <button class="nav-item" onclick="showPanel('resume')"><span class="nav-icon">▤</span> Resume</button>
+    <button class="nav-item" type="button" onclick="showPanel('settings', this)"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</button>
+    <button class="nav-item" type="button" onclick="showPanel('resume', this)"><span class="nav-icon" aria-hidden="true">▤</span> Resume</button>
     <div class="nav-section">System</div>
-    <a href="/admin/update.php" class="nav-item"><span class="nav-icon">⬆</span> DB Migrations</a>
+    <a href="/admin/update.php" class="nav-item"><span class="nav-icon" aria-hidden="true">⬆</span> DB Migrations</a>
     <div class="nav-section">Account</div>
-    <button class="nav-item" onclick="showPanel('account')"><span class="nav-icon">◉</span> Account</button>
+    <button class="nav-item" type="button" onclick="showPanel('account', this)"><span class="nav-icon" aria-hidden="true">◉</span> Account</button>
   </aside>
 
   <!-- MAIN -->
@@ -180,7 +215,7 @@ if (!$admin) {
     <!-- ── PROJECTS LIST ── -->
     <div class="panel active" id="panel-projects">
       <div class="panel-header">
-        <div class="panel-title">Projects</div>
+        <h1 class="panel-title">Projects</h1>
         <div class="panel-sub">Manage your portfolio projects</div>
       </div>
       <div class="stats-row">
@@ -191,7 +226,7 @@ if (!$admin) {
       <table class="proj-table">
         <thead>
           <tr>
-            <th></th>
+            <th><span class="visually-hidden">Reorder</span></th>
             <th>Title</th>
             <th>Language</th>
             <th>Status</th>
@@ -208,29 +243,29 @@ if (!$admin) {
     <!-- ── ADD PROJECT ── -->
     <div class="panel" id="panel-add-project">
       <div class="panel-header">
-        <div class="panel-title">Add Project</div>
+        <h1 class="panel-title">Add Project</h1>
         <div class="panel-sub">Add a new project to your portfolio</div>
       </div>
       <div class="form-grid">
         <div class="form-group full">
-          <label>Title <span class="req">*</span></label>
+          <label for="ap-title">Title <span class="req">*</span></label>
           <input type="text" id="ap-title" placeholder="My Awesome Project">
         </div>
         <div class="form-group full">
-          <label>Short Description <span class="req">*</span></label>
+          <label for="ap-short-desc">Short Description <span class="req">*</span></label>
           <textarea id="ap-short-desc" rows="2" placeholder="1–2 sentence summary shown on the project card"></textarea>
         </div>
         <div class="form-group full">
-          <label>Full Description <span class="req">*</span></label>
+          <label for="ap-desc">Full Description <span class="req">*</span></label>
           <textarea id="ap-desc" rows="4" placeholder="Detailed description shown in the project detail view"></textarea>
           <div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div>
         </div>
         <div class="form-group">
-          <label>Primary Language <span class="req">*</span></label>
+          <label for="ap-lang">Primary Language <span class="req">*</span></label>
           <input type="text" id="ap-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
         <div class="form-group">
-          <label>Status</label>
+          <label for="ap-status">Status</label>
           <select id="ap-status">
             <option value="active">Active</option>
             <option value="wip">WIP</option>
@@ -238,59 +273,59 @@ if (!$admin) {
           </select>
         </div>
         <div class="form-group">
-          <label>GitHub URL</label>
+          <label for="ap-github">GitHub URL</label>
           <input type="url" id="ap-github" placeholder="https://github.com/user/repo">
         </div>
         <div class="form-group">
-          <label>Live Demo URL</label>
+          <label for="ap-demo">Live Demo URL</label>
           <input type="url" id="ap-demo" placeholder="https://myproject.dev">
         </div>
         <div class="form-group">
-          <label>Tags</label>
+          <label for="ap-tags">Tags</label>
           <input type="text" id="ap-tags" placeholder="React, Node.js, PostgreSQL">
           <div class="hint">Comma-separated</div>
         </div>
         <div class="form-group">
-          <label>Sort Order</label>
+          <label for="ap-sort">Sort Order</label>
           <input type="text" id="ap-sort" placeholder="0" value="0">
           <div class="hint">Lower = appears first</div>
         </div>
         <div class="form-group">
-          <label>Year Created</label>
+          <label for="ap-year">Year Created</label>
           <input type="number" id="ap-year" placeholder="2024" min="1900" max="2099">
         </div>
         <div class="form-group full">
           <label>Project Images</label>
           <div class="img-gallery" id="ap-img-gallery"></div>
           <div class="img-upload-area">
-            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'ap')">
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'ap')" aria-label="Upload project images">
             <div class="img-upload-label">＋ Add images — jpg, png, gif, webp, max 5 MB each</div>
           </div>
           <div id="ap-img-status" class="img-uploading" style="display:none">Uploading...</div>
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn-save" onclick="addProject()">＋ Add Project</button>
-        <button class="btn-reset" onclick="resetAddForm()">Reset</button>
+        <button class="btn-save" type="button" onclick="addProject()">＋ Add Project</button>
+        <button class="btn-reset" type="button" onclick="resetAddForm()">Reset</button>
       </div>
     </div>
 
     <!-- ── SKILLS ── -->
     <div class="panel" id="panel-skills">
       <div class="panel-header">
-        <div class="panel-title">Skills</div>
+        <h1 class="panel-title">Skills</h1>
         <div class="panel-sub">Manage the grouped skill tags shown in the About section</div>
       </div>
-      <div id="skill-groups-list" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:2rem"></div>
-      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.2rem">
-        <div style="font-size:0.63rem;color:var(--amber);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem">Add Group</div>
+      <div id="skill-groups-list" class="skill-list"></div>
+      <div class="add-group-tile">
+        <div class="add-group-tile-label">Add Group</div>
         <div class="form-grid">
-          <div class="form-group"><label>Group Label <span class="req">*</span></label><input type="text" id="sg-label" placeholder="e.g. Mobile &amp; Frontend"></div>
-          <div class="form-group"><label>Sort Order</label><input type="text" id="sg-sort" value="0"><div class="hint">Lower = appears first</div></div>
-          <div class="form-group full"><label>Skills <span class="req">*</span></label><input type="text" id="sg-skills" placeholder="Flutter, Dart, React"><div class="hint">Comma-separated</div></div>
+          <div class="form-group"><label for="sg-label">Group Label <span class="req">*</span></label><input type="text" id="sg-label" placeholder="e.g. Mobile &amp; Frontend"></div>
+          <div class="form-group"><label for="sg-sort">Sort Order</label><input type="text" id="sg-sort" value="0"><div class="hint">Lower = appears first</div></div>
+          <div class="form-group full"><label for="sg-skills">Skills <span class="req">*</span></label><input type="text" id="sg-skills" placeholder="Flutter, Dart, React"><div class="hint">Comma-separated</div></div>
         </div>
         <div class="form-actions">
-          <button class="btn-save" onclick="addSkillGroup()">＋ Add Group</button>
+          <button class="btn-save" type="button" onclick="addSkillGroup()">＋ Add Group</button>
         </div>
       </div>
     </div>
@@ -298,47 +333,47 @@ if (!$admin) {
     <!-- ── SETTINGS ── -->
     <div class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title">Site Settings</div>
+        <h1 class="panel-title">Site Settings</h1>
         <div class="panel-sub">Manage your portfolio content</div>
       </div>
       <div class="form-grid">
-        <div class="form-group"><label>Your Name</label><input type="text" id="s-name" placeholder="Jane Smith"></div>
-        <div class="form-group"><label>Role / Title</label><input type="text" id="s-role" placeholder="Full-Stack Developer"></div>
-        <div class="form-group full"><label>Bio</label><textarea id="s-bio" rows="3" placeholder="A short paragraph about yourself..."></textarea></div>
-        <div class="form-group"><label>Email</label><input type="text" id="s-email" placeholder="you@example.com"></div>
-        <div class="form-group"><label>GitHub URL</label><input type="url" id="s-github" placeholder="https://github.com/username"></div>
-        <div class="form-group"><label>LinkedIn URL</label><input type="url" id="s-linkedin" placeholder="https://linkedin.com/in/username"></div>
-        <div class="form-group"><label>Location</label><input type="text" id="s-location" placeholder="San Francisco, CA"></div>
-        <div class="form-group"><label>Tagline</label><input type="text" id="s-tagline" placeholder="Building great software, one commit at a time"></div>
-        <div class="form-group"><label>Years of Experience</label><input type="text" id="s-years" placeholder="5+"></div>
+        <div class="form-group"><label for="s-name">Your Name</label><input type="text" id="s-name" placeholder="Jane Smith"></div>
+        <div class="form-group"><label for="s-role">Role / Title</label><input type="text" id="s-role" placeholder="Full-Stack Developer"></div>
+        <div class="form-group full"><label for="s-bio">Bio</label><textarea id="s-bio" rows="3" placeholder="A short paragraph about yourself..."></textarea></div>
+        <div class="form-group"><label for="s-email">Email</label><input type="text" id="s-email" placeholder="you@example.com"></div>
+        <div class="form-group"><label for="s-github">GitHub URL</label><input type="url" id="s-github" placeholder="https://github.com/username"></div>
+        <div class="form-group"><label for="s-linkedin">LinkedIn URL</label><input type="url" id="s-linkedin" placeholder="https://linkedin.com/in/username"></div>
+        <div class="form-group"><label for="s-location">Location</label><input type="text" id="s-location" placeholder="San Francisco, CA"></div>
+        <div class="form-group"><label for="s-tagline">Tagline</label><input type="text" id="s-tagline" placeholder="Building great software, one commit at a time"></div>
+        <div class="form-group"><label for="s-years">Years of Experience</label><input type="text" id="s-years" placeholder="5+"></div>
         <div class="form-group full">
-          <label>Ticker Items</label>
+          <label for="s-ticker">Ticker Items</label>
           <textarea id="s-ticker" rows="5" placeholder="Full-Stack Developer&#10;WordPress Developer&#10;Ceramics Instructor"></textarea>
           <div class="hint">One item per line. Cycles through these in the hero typed effect.</div>
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn-save" onclick="saveSettings()">💾 Save Settings</button>
+        <button class="btn-save" type="button" onclick="saveSettings()">💾 Save Settings</button>
       </div>
     </div>
 
     <!-- ── RESUME ── -->
     <div class="panel" id="panel-resume">
       <div class="panel-header">
-        <div class="panel-title">Resume</div>
+        <h1 class="panel-title">Resume</h1>
         <div class="panel-sub">Upload a PDF resume for your portfolio</div>
       </div>
       <div id="resume-current" style="margin-bottom:1.5rem;display:none">
-        <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem;display:flex;align-items:center;justify-content:space-between;max-width:400px">
+        <div class="resume-tile">
           <div>
-            <div style="font-size:0.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem">Current Resume</div>
-            <a id="resume-link" href="" target="_blank" style="color:var(--amber);font-size:0.8rem;text-decoration:none">resume.pdf ↗</a>
+            <div class="resume-tile-label">Current Resume</div>
+            <a id="resume-link" href="" target="_blank" class="resume-link">resume.pdf ↗</a>
           </div>
         </div>
       </div>
       <div style="max-width:400px">
         <div class="img-upload-area">
-          <input type="file" accept="application/pdf" onchange="uploadResume(this)">
+          <input type="file" accept="application/pdf" onchange="uploadResume(this)" aria-label="Upload resume PDF">
           <div class="img-upload-label">＋ Replace resume — PDF only, max 10 MB</div>
         </div>
         <div id="resume-status" class="img-uploading" style="display:none">Uploading...</div>
@@ -348,24 +383,24 @@ if (!$admin) {
     <!-- ── ACCOUNT ── -->
     <div class="panel" id="panel-account">
       <div class="panel-header">
-        <div class="panel-title">Account</div>
+        <h1 class="panel-title">Account</h1>
         <div class="panel-sub">Your admin account details</div>
       </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;max-width:400px">
-        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+      <div class="account-tile">
+        <div class="account-row">
           <?php if ($admin['avatar_url']): ?>
-          <img src="<?= htmlspecialchars($admin['avatar_url']) ?>" style="width:48px;height:48px;border-radius:50%;border:1px solid var(--border)" alt="">
+          <img src="<?= htmlspecialchars($admin['avatar_url']) ?>" class="account-avatar" alt="<?= htmlspecialchars($admin['name']) ?> avatar">
           <?php endif; ?>
           <div>
-            <div style="font-weight:600;margin-bottom:0.2rem"><?= htmlspecialchars($admin['name']) ?></div>
-            <div style="font-size:0.72rem;color:var(--muted)"><?= htmlspecialchars($admin['email']) ?></div>
+            <div class="account-name"><?= htmlspecialchars($admin['name']) ?></div>
+            <div class="account-email"><?= htmlspecialchars($admin['email']) ?></div>
           </div>
         </div>
-        <div style="font-size:0.68rem;color:var(--muted);border-top:1px solid var(--border);padding-top:1rem">
-          <div style="margin-bottom:0.5rem">Provider: <span style="color:var(--amber)"><?= htmlspecialchars($admin['provider']) ?></span></div>
+        <div class="account-meta">
+          <div class="row">Provider: <span class="amber"><?= htmlspecialchars($admin['provider']) ?></span></div>
           <div>Session expires in 8 hours of inactivity</div>
         </div>
-        <div style="margin-top:1.2rem">
+        <div class="account-actions">
           <a href="/api/auth/logout.php" class="btn-reset" style="display:inline-block;text-decoration:none">Sign Out</a>
         </div>
       </div>
@@ -375,62 +410,62 @@ if (!$admin) {
 </div>
 
 <!-- EDIT MODAL -->
-<div class="modal-overlay" id="edit-modal" onclick="handleModalClick(event)">
+<div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Edit Project</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title" id="edit-modal-title">Edit Project</div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Close edit project dialog">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="edit-id">
       <div class="form-grid">
-        <div class="form-group full"><label>Title <span class="req">*</span></label><input type="text" id="edit-title"></div>
-        <div class="form-group full"><label>Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
-        <div class="form-group full"><label>Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div></div>
-        <div class="form-group"><label>Language <span class="req">*</span></label>
+        <div class="form-group full"><label for="edit-title">Title <span class="req">*</span></label><input type="text" id="edit-title"></div>
+        <div class="form-group full"><label for="edit-short-desc">Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
+        <div class="form-group full"><label for="edit-desc">Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · [text](url) · # Heading · ## Sub-heading</div></div>
+        <div class="form-group"><label for="edit-lang">Language <span class="req">*</span></label>
           <input type="text" id="edit-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
-        <div class="form-group"><label>Status</label>
+        <div class="form-group"><label for="edit-status">Status</label>
           <select id="edit-status"><option value="active">Active</option><option value="wip">WIP</option><option value="archived">Archived</option></select>
         </div>
-        <div class="form-group"><label>GitHub URL</label><input type="url" id="edit-github"></div>
-        <div class="form-group"><label>Demo URL</label><input type="url" id="edit-demo"></div>
-        <div class="form-group"><label>Tags</label><input type="text" id="edit-tags"><div class="hint">Comma-separated</div></div>
-        <div class="form-group"><label>Sort Order</label><input type="text" id="edit-sort"></div>
-        <div class="form-group"><label>Year Created</label><input type="number" id="edit-year" min="1900" max="2099"></div>
+        <div class="form-group"><label for="edit-github">GitHub URL</label><input type="url" id="edit-github"></div>
+        <div class="form-group"><label for="edit-demo">Demo URL</label><input type="url" id="edit-demo"></div>
+        <div class="form-group"><label for="edit-tags">Tags</label><input type="text" id="edit-tags"><div class="hint">Comma-separated</div></div>
+        <div class="form-group"><label for="edit-sort">Sort Order</label><input type="text" id="edit-sort"></div>
+        <div class="form-group"><label for="edit-year">Year Created</label><input type="number" id="edit-year" min="1900" max="2099"></div>
         <div class="form-group full">
           <label>Project Images</label>
           <div class="img-gallery" id="edit-img-gallery"></div>
           <div class="img-upload-area">
-            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'edit')">
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onchange="uploadImages(this,'edit')" aria-label="Upload project images">
             <div class="img-upload-label">＋ Add images — jpg, png, gif, webp, max 5 MB each</div>
           </div>
           <div id="edit-img-status" class="img-uploading" style="display:none">Uploading...</div>
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn-save" onclick="saveEdit()">💾 Save Changes</button>
-        <button class="btn-reset" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" type="button" onclick="saveEdit()">💾 Save Changes</button>
+        <button class="btn-reset" type="button" data-modal-close>Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- SKILL GROUP EDIT MODAL -->
-<div class="modal-overlay" id="skill-modal" onclick="handleSkillModalClick(event)">
+<div class="modal-overlay" id="skill-modal" role="dialog" aria-modal="true" aria-labelledby="skill-modal-title">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Edit Skill Group</div>
-      <button class="modal-close" onclick="closeSkillModal()">✕</button>
+      <div class="modal-title" id="skill-modal-title">Edit Skill Group</div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Close edit skill group dialog">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="sk-id">
-      <div class="form-group"><label>Group Label <span class="req">*</span></label><input type="text" id="sk-label"></div>
-      <div class="form-group"><label>Sort Order</label><input type="text" id="sk-sort"><div class="hint">Lower = appears first</div></div>
-      <div class="form-group"><label>Skills</label><input type="text" id="sk-skills"><div class="hint">Comma-separated</div></div>
+      <div class="form-group"><label for="sk-label">Group Label <span class="req">*</span></label><input type="text" id="sk-label"></div>
+      <div class="form-group"><label for="sk-sort">Sort Order</label><input type="text" id="sk-sort"><div class="hint">Lower = appears first</div></div>
+      <div class="form-group"><label for="sk-skills">Skills</label><input type="text" id="sk-skills"><div class="hint">Comma-separated</div></div>
       <div class="form-actions">
-        <button class="btn-save" onclick="saveSkillGroup()">💾 Save Changes</button>
-        <button class="btn-reset" onclick="closeSkillModal()">Cancel</button>
+        <button class="btn-save" type="button" onclick="saveSkillGroup()">💾 Save Changes</button>
+        <button class="btn-reset" type="button" data-modal-close>Cancel</button>
       </div>
     </div>
   </div>
@@ -453,39 +488,174 @@ if (!$admin) {
 
 <script>
 const API = '/api';
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content') || '';
 let allProjects = [];
+let allSkillGroups = [];
 
-// ── Panel navigation ────────────────────────────────────────
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+const projectImages       = { ap: [], edit: [] };
+const projectSummaryImage = { ap: null, edit: null };
+
+// ── Network: single helper that adds CSRF on writes and surfaces errors ─────
+async function apiFetch(path, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const headers = { ...(opts.headers || {}) };
+  if (isWrite && CSRF_TOKEN) headers['X-CSRF-Token'] = CSRF_TOKEN;
+
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, { ...opts, headers });
+  } catch (e) {
+    throw new Error('Network error');
+  }
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (e) {}
+    throw new Error(msg);
+  }
+  const text = await res.text();
+  if (!text) return null;
+  try { return JSON.parse(text); }
+  catch (e) { throw new Error('Invalid JSON response'); }
 }
 
-// ── Load data ───────────────────────────────────────────────
+// ── Toast ────────────────────────────────────────────────────
+function toast(msg, err=false) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (err ? ' err' : '');
+  t.setAttribute('role', err ? 'alert' : 'status');
+  t.textContent = (err ? '⚠ ' : '✓ ') + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function intOrZero(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; }
+function intOrNull(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; }
+
+// ── Panel navigation ────────────────────────────────────────
+function showPanel(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  if (btn && btn.classList) btn.classList.add('active');
+}
+function showPanelById(name) {
+  const btn = Array.from(document.querySelectorAll('.nav-item'))
+    .find(n => (n.getAttribute('onclick') || '').includes(`'${name}'`));
+  showPanel(name, btn);
+}
+
+// ── Generic drag-and-drop reorder helper ────────────────────
+// Wires drag/dragend/dragover/drop on every `itemSelector` element in
+// `container`. When a drop happens, calls onReorder(srcIdx, destIdx) where
+// indexes come from getIndex(element).
+function enableDragReorder({ container, itemSelector, getIndex, onReorder, dragClass = 'dragging', overClass = 'drag-over' }) {
+  let dragSrc = null;
+  const items = container.querySelectorAll(itemSelector);
+  items.forEach(item => {
+    item.addEventListener('dragstart', function(e) {
+      dragSrc = this;
+      this.classList.add(dragClass);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', function() {
+      this.classList.remove(dragClass);
+      container.querySelectorAll(itemSelector).forEach(t => t.classList.remove(overClass));
+    });
+    item.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll(itemSelector).forEach(t => t.classList.remove(overClass));
+      if (this !== dragSrc) this.classList.add(overClass);
+    });
+    item.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragSrc || this === dragSrc) return;
+      onReorder(getIndex(dragSrc), getIndex(this));
+    });
+  });
+}
+
+// ── Generic modal binder: Esc to close, click-overlay to close,
+//    [data-modal-close] buttons to close, focus trap + restore focus.
+function bindModal(modalId, { onOpen, onClose, focusSelector } = {}) {
+  const modal = document.getElementById(modalId);
+  let lastFocused = null;
+
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', close));
+  modal.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  function open() {
+    lastFocused = document.activeElement;
+    modal.classList.add('open');
+    if (typeof onOpen === 'function') onOpen();
+    if (focusSelector) {
+      const el = modal.querySelector(focusSelector);
+      if (el) setTimeout(() => el.focus(), 30);
+    }
+  }
+  function close() {
+    if (!modal.classList.contains('open')) return;
+    modal.classList.remove('open');
+    if (typeof onClose === 'function') onClose();
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+  }
+  return { open, close };
+}
+
+const editModal  = bindModal('edit-modal',  { onClose: resetEditImages, focusSelector: '#edit-title' });
+const skillModal = bindModal('skill-modal', { focusSelector: '#sk-label' });
+
+// ── Loaders ──────────────────────────────────────────────────
 async function loadProjects() {
-  const res = await fetch(`${API}/projects/`);
-  allProjects = await res.json();
-  renderTable(allProjects);
-  updateCounts(allProjects);
+  try {
+    allProjects = await apiFetch('/projects/') || [];
+    renderTable(allProjects);
+    updateCounts(allProjects);
+  } catch (e) { toast('Failed to load projects: ' + e.message, true); }
 }
 
 async function loadSettings() {
-  const s = await fetch(`${API}/settings/`).then(r => r.json());
-  document.getElementById('s-name').value     = s.name     || '';
-  document.getElementById('s-role').value     = s.role     || '';
-  document.getElementById('s-bio').value      = s.bio      || '';
-  document.getElementById('s-email').value    = s.email    || '';
-  document.getElementById('s-github').value   = s.github   || '';
-  document.getElementById('s-linkedin').value = s.linkedin || '';
-  document.getElementById('s-location').value = s.location || '';
-  document.getElementById('s-tagline').value  = s.tagline     || '';
-  document.getElementById('s-years').value    = s.years_exp   || '';
-  document.getElementById('s-ticker').value   = s.ticker_items || '';
+  try {
+    const s = await apiFetch('/settings/') || {};
+    document.getElementById('s-name').value     = s.name         || '';
+    document.getElementById('s-role').value     = s.role         || '';
+    document.getElementById('s-bio').value      = s.bio          || '';
+    document.getElementById('s-email').value    = s.email        || '';
+    document.getElementById('s-github').value   = s.github       || '';
+    document.getElementById('s-linkedin').value = s.linkedin     || '';
+    document.getElementById('s-location').value = s.location     || '';
+    document.getElementById('s-tagline').value  = s.tagline      || '';
+    document.getElementById('s-years').value    = s.years_exp    || '';
+    document.getElementById('s-ticker').value   = s.ticker_items || '';
+  } catch (e) { toast('Failed to load settings: ' + e.message, true); }
 }
 
-// ── Render table ─────────────────────────────────────────────
+async function loadSkills() {
+  try {
+    allSkillGroups = await apiFetch('/skills/') || [];
+    renderSkillGroups();
+  } catch (e) { toast('Failed to load skills: ' + e.message, true); }
+}
+
+async function loadResume() {
+  try {
+    const data = await apiFetch('/uploads/resume.php');
+    if (data && data.url) {
+      document.getElementById('resume-current').style.display = 'block';
+      document.getElementById('resume-link').href = data.url;
+    }
+  } catch (e) { /* no-op: resume may simply not exist yet */ }
+}
+
+// ── Render: project table ────────────────────────────────────
 function renderTable(projects) {
   const tbody = document.getElementById('proj-tbody');
   if (!projects.length) {
@@ -494,23 +664,36 @@ function renderTable(projects) {
   }
   tbody.innerHTML = projects.map(p => `
     <tr draggable="true" data-id="${p.id}">
-      <td class="drag-handle" title="Drag to reorder">⠿</td>
+      <td class="drag-handle" title="Drag to reorder" aria-label="Drag handle for ${esc(p.title)}">⠿</td>
       <td><strong>${esc(p.title)}</strong></td>
       <td><span class="proj-lang-badge">${esc(p.language)}</span></td>
       <td><span class="status-badge ${esc(p.status)}">${esc(p.status)}</span></td>
       <td style="font-size:0.65rem">
-        ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" style="color:var(--amber);text-decoration:none">GitHub</a>` : '—'}
-        ${p.demo_url   ? ` · <a href="${esc(p.demo_url)}" target="_blank" style="color:var(--blue);text-decoration:none">Demo</a>` : ''}
+        ${p.github_url ? `<a href="${esc(p.github_url)}" target="_blank" class="tbl-link-amber">GitHub</a>` : '—'}
+        ${p.demo_url   ? ` · <a href="${esc(p.demo_url)}" target="_blank" class="tbl-link-blue">Demo</a>` : ''}
       </td>
       <td>
         <div class="tbl-actions">
-          <button class="tbl-btn edit" onclick="openEdit(${p.id})">Edit</button>
-          <button class="tbl-btn del"  onclick="deleteProject(${p.id})">Delete</button>
+          <button class="tbl-btn edit" type="button" onclick="openEdit(${p.id})">Edit</button>
+          <button class="tbl-btn del"  type="button" onclick="deleteProject(${p.id})">Delete</button>
         </div>
       </td>
     </tr>
   `).join('');
-  initDragDrop();
+
+  enableDragReorder({
+    container: tbody,
+    itemSelector: 'tr[data-id]',
+    getIndex: el => allProjects.findIndex(p => p.id === intOrZero(el.dataset.id)),
+    onReorder: (srcIdx, destIdx) => {
+      const [moved] = allProjects.splice(srcIdx, 1);
+      allProjects.splice(destIdx, 0, moved);
+      allProjects.forEach((p, i) => p.sort_order = i);
+      renderTable(allProjects);
+      updateCounts(allProjects);
+      saveOrder();
+    },
+  });
 }
 
 function updateCounts(projects) {
@@ -519,10 +702,18 @@ function updateCounts(projects) {
   document.getElementById('count-wip').textContent    = projects.filter(p=>p.status==='wip').length;
 }
 
-// ── Image gallery helpers ─────────────────────────────────────
-const projectImages       = { ap: [], edit: [] };
-const projectSummaryImage = { ap: null, edit: null };
+async function saveOrder() {
+  try {
+    await apiFetch('/projects/', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allProjects.map((p, i) => ({ id: p.id, sort_order: i }))),
+    });
+    toast('Order saved');
+  } catch (e) { toast('Error saving order: ' + e.message, true); }
+}
 
+// ── Image gallery ────────────────────────────────────────────
 function setSummaryImage(prefix, i) {
   const url = projectImages[prefix][i];
   projectSummaryImage[prefix] = projectSummaryImage[prefix] === url ? null : url;
@@ -535,13 +726,13 @@ async function uploadImages(input, prefix) {
   const statusEl = document.getElementById(`${prefix}-img-status`);
   statusEl.style.display = 'block';
   for (const file of files) {
-    const fd = new FormData();
-    fd.append('image', file);
-    const res = await fetch(`${API}/uploads/`, { method: 'POST', body: fd });
-    if (res.ok) {
-      projectImages[prefix].push((await res.json()).url);
-    } else {
-      toast(`Failed to upload ${file.name}`, true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const data = await apiFetch('/uploads/', { method: 'POST', body: fd });
+      if (data && data.url) projectImages[prefix].push(data.url);
+    } catch (e) {
+      toast(`Failed to upload ${file.name}: ${e.message}`, true);
     }
   }
   statusEl.style.display = 'none';
@@ -560,45 +751,28 @@ function renderImageGallery(prefix) {
   const gallery = document.getElementById(`${prefix}-img-gallery`);
   gallery.innerHTML = projectImages[prefix].map((url, i) => {
     const isSummary = projectSummaryImage[prefix] === url;
+    const starLabel = isSummary ? 'Summary image (click to unset)' : 'Set as card summary image';
     return `
       <div class="img-thumb${isSummary ? ' is-summary' : ''}" draggable="true" data-index="${i}">
-        <img src="${url}" alt="">
-        <button type="button" class="img-thumb-del" onclick="removeProjectImage('${prefix}',${i})">✕</button>
-        <button type="button" class="img-thumb-star" onclick="setSummaryImage('${prefix}',${i})" title="${isSummary ? 'Summary image (click to unset)' : 'Set as card summary image'}">${isSummary ? '★' : '☆'}</button>
+        <img src="${esc(url)}" alt="Project image ${i + 1}">
+        <button type="button" class="img-thumb-del" onclick="removeProjectImage('${prefix}',${i})" aria-label="Remove image ${i + 1}">✕</button>
+        <button type="button" class="img-thumb-star" onclick="setSummaryImage('${prefix}',${i})" title="${starLabel}" aria-label="${starLabel}">${isSummary ? '★' : '☆'}</button>
       </div>
     `;
   }).join('');
-  initGalleryDragDrop(prefix, gallery);
-}
 
-function initGalleryDragDrop(prefix, gallery) {
-  let dragSrc = null;
-  gallery.querySelectorAll('.img-thumb').forEach(thumb => {
-    thumb.addEventListener('dragstart', function(e) {
-      dragSrc = this;
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => this.style.opacity = '0.35', 0);
-    });
-    thumb.addEventListener('dragend', function() {
-      this.style.opacity = '';
-      gallery.querySelectorAll('.img-thumb').forEach(t => t.classList.remove('img-drag-over'));
-    });
-    thumb.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      gallery.querySelectorAll('.img-thumb').forEach(t => t.classList.remove('img-drag-over'));
-      if (this !== dragSrc) this.classList.add('img-drag-over');
-    });
-    thumb.addEventListener('drop', function(e) {
-      e.preventDefault();
-      if (!dragSrc || this === dragSrc) return;
-      const srcIdx  = parseInt(dragSrc.dataset.index);
-      const destIdx = parseInt(this.dataset.index);
+  enableDragReorder({
+    container: gallery,
+    itemSelector: '.img-thumb',
+    getIndex: el => intOrZero(el.dataset.index),
+    onReorder: (srcIdx, destIdx) => {
       const imgs = projectImages[prefix];
       const [moved] = imgs.splice(srcIdx, 1);
       imgs.splice(destIdx, 0, moved);
       renderImageGallery(prefix);
-    });
+    },
+    dragClass: 'img-dragging',
+    overClass: 'img-drag-over',
   });
 }
 
@@ -607,7 +781,7 @@ async function addProject() {
   const title     = document.getElementById('ap-title').value.trim();
   const shortDesc = document.getElementById('ap-short-desc').value.trim();
   const desc      = document.getElementById('ap-desc').value.trim();
-  const lang      = document.getElementById('ap-lang').value;
+  const lang      = document.getElementById('ap-lang').value.trim();
   if (!title || !desc || !lang) { toast('Fill in required fields', true); return; }
 
   const tags = document.getElementById('ap-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
@@ -619,20 +793,17 @@ async function addProject() {
     images:        projectImages.ap,
     summary_image: projectSummaryImage.ap || null,
     status:        document.getElementById('ap-status').value,
-    sort_order:    parseInt(document.getElementById('ap-sort').value) || 0,
-    year:          parseInt(document.getElementById('ap-year').value) || null,
+    sort_order:    intOrZero(document.getElementById('ap-sort').value),
+    year:          intOrNull(document.getElementById('ap-year').value),
   };
 
-  const res = await fetch(`${API}/projects/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) {
+  try {
+    await apiFetch('/projects/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     toast('Project added!');
     resetAddForm();
     await loadProjects();
     showPanelById('projects');
-  } else {
-    const err = await res.json();
-    toast(err.error || 'Error', true);
-  }
+  } catch (e) { toast(e.message, true); }
 }
 
 function resetAddForm() {
@@ -646,12 +817,13 @@ function resetAddForm() {
   renderImageGallery('ap');
 }
 
-// ── Delete ───────────────────────────────────────────────────
 async function deleteProject(id) {
   if (!confirm('Delete this project? This cannot be undone.')) return;
-  const res = await fetch(`${API}/projects/?id=${id}`, { method:'DELETE' });
-  if (res.ok) { toast('Project deleted'); await loadProjects(); }
-  else toast('Error deleting', true);
+  try {
+    await apiFetch(`/projects/?id=${id}`, { method:'DELETE' });
+    toast('Project deleted');
+    await loadProjects();
+  } catch (e) { toast('Error deleting: ' + e.message, true); }
 }
 
 // ── Edit modal ───────────────────────────────────────────────
@@ -662,7 +834,6 @@ function openEdit(id) {
   document.getElementById('edit-title').value       = p.title;
   document.getElementById('edit-short-desc').value  = p.short_description || '';
   document.getElementById('edit-desc').value        = p.description;
-
   document.getElementById('edit-lang').value        = p.language;
   document.getElementById('edit-status').value      = p.status;
   document.getElementById('edit-github').value      = p.github_url || '';
@@ -673,7 +844,7 @@ function openEdit(id) {
   projectImages.edit       = [...(p.images || [])];
   projectSummaryImage.edit = p.summary_image || null;
   renderImageGallery('edit');
-  document.getElementById('edit-modal').classList.add('open');
+  editModal.open();
 }
 
 async function saveEdit() {
@@ -683,133 +854,52 @@ async function saveEdit() {
     title:             document.getElementById('edit-title').value.trim(),
     short_description: document.getElementById('edit-short-desc').value.trim(),
     description:       document.getElementById('edit-desc').value.trim(),
-    language:          document.getElementById('edit-lang').value,
+    language:          document.getElementById('edit-lang').value.trim(),
     status:            document.getElementById('edit-status').value,
     github_url:        document.getElementById('edit-github').value.trim(),
     demo_url:          document.getElementById('edit-demo').value.trim(),
     images:            projectImages.edit,
     summary_image:     projectSummaryImage.edit || null,
     tags,
-    sort_order:        parseInt(document.getElementById('edit-sort').value) || 0,
-    year:              parseInt(document.getElementById('edit-year').value) || null,
+    sort_order:        intOrZero(document.getElementById('edit-sort').value),
+    year:              intOrNull(document.getElementById('edit-year').value),
   };
 
-  const res = await fetch(`${API}/projects/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) {
-    closeModal();
+  try {
+    await apiFetch(`/projects/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    editModal.close();
     toast('Project updated!');
     await loadProjects();
-  } else toast('Error saving', true);
+  } catch (e) { toast('Error saving: ' + e.message, true); }
 }
 
-function closeModal() {
-  document.getElementById('edit-modal').classList.remove('open');
+function resetEditImages() {
   projectImages.edit       = [];
   projectSummaryImage.edit = null;
   renderImageGallery('edit');
 }
-function handleModalClick(e) { if (e.target === document.getElementById('edit-modal')) closeModal(); }
 
 // ── Save settings ────────────────────────────────────────────
 async function saveSettings() {
   const body = {
-    name:     document.getElementById('s-name').value.trim(),
-    role:     document.getElementById('s-role').value.trim(),
-    bio:      document.getElementById('s-bio').value.trim(),
-    email:    document.getElementById('s-email').value.trim(),
-    github:   document.getElementById('s-github').value.trim(),
-    linkedin: document.getElementById('s-linkedin').value.trim(),
-    location: document.getElementById('s-location').value.trim(),
+    name:         document.getElementById('s-name').value.trim(),
+    role:         document.getElementById('s-role').value.trim(),
+    bio:          document.getElementById('s-bio').value.trim(),
+    email:        document.getElementById('s-email').value.trim(),
+    github:       document.getElementById('s-github').value.trim(),
+    linkedin:     document.getElementById('s-linkedin').value.trim(),
+    location:     document.getElementById('s-location').value.trim(),
     tagline:      document.getElementById('s-tagline').value.trim(),
     years_exp:    document.getElementById('s-years').value.trim(),
     ticker_items: document.getElementById('s-ticker').value.trim(),
   };
-  const res = await fetch(`${API}/settings/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) toast('Settings saved!');
-  else toast('Error saving settings', true);
-}
-
-// ── Drag-and-drop reorder ────────────────────────────────────
-function initDragDrop() {
-  const tbody = document.getElementById('proj-tbody');
-  let dragSrc = null;
-
-  tbody.querySelectorAll('tr[data-id]').forEach(row => {
-    row.addEventListener('dragstart', function(e) {
-      dragSrc = this;
-      this.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragend', function() {
-      this.classList.remove('dragging');
-      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-    });
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-      if (this !== dragSrc) this.classList.add('drag-over');
-    });
-    row.addEventListener('drop', function(e) {
-      e.preventDefault();
-      if (!dragSrc || this === dragSrc) return;
-      const srcId  = parseInt(dragSrc.dataset.id);
-      const destId = parseInt(this.dataset.id);
-      const srcIdx  = allProjects.findIndex(p => p.id === srcId);
-      const destIdx = allProjects.findIndex(p => p.id === destId);
-      const [moved] = allProjects.splice(srcIdx, 1);
-      allProjects.splice(destIdx, 0, moved);
-      allProjects.forEach((p, i) => p.sort_order = i);
-      renderTable(allProjects);
-      updateCounts(allProjects);
-      saveOrder();
-    });
-  });
-}
-
-async function saveOrder() {
-  const payload = allProjects.map((p, i) => ({ id: p.id, sort_order: i }));
-  const res = await fetch(`${API}/projects/`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (res.ok) toast('Order saved');
-  else toast('Error saving order', true);
-}
-
-// ── Toast ────────────────────────────────────────────────────
-function toast(msg, err=false) {
-  const t = document.createElement('div');
-  t.className = 'toast' + (err ? ' err' : '');
-  t.textContent = (err ? '⚠ ' : '✓ ') + msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
-
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function showPanelById(name) {
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('panel-'+name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>{
-    if (n.getAttribute('onclick')?.includes(`'${name}'`)) n.classList.add('active');
-  });
+  try {
+    await apiFetch('/settings/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    toast('Settings saved!');
+  } catch (e) { toast('Error saving settings: ' + e.message, true); }
 }
 
 // ── Skills ───────────────────────────────────────────────────
-let allSkillGroups = [];
-
-async function loadSkills() {
-  const res = await fetch(`${API}/skills/`);
-  allSkillGroups = await res.json();
-  renderSkillGroups();
-}
-
 function renderSkillGroups() {
   const list = document.getElementById('skill-groups-list');
   if (!allSkillGroups.length) {
@@ -817,16 +907,16 @@ function renderSkillGroups() {
     return;
   }
   list.innerHTML = allSkillGroups.map(g => `
-    <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem 1.2rem;display:flex;align-items:flex-start;gap:1rem">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);margin-bottom:0.5rem">${esc(g.label)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-          ${(g.skills||[]).map(s=>`<span style="font-size:0.68rem;color:var(--muted);border:1px solid var(--border);padding:0.15rem 0.5rem">${esc(s)}</span>`).join('')}
+    <div class="tile-row">
+      <div class="tile-body">
+        <div class="tile-label-amber">${esc(g.label)}</div>
+        <div class="tile-tags">
+          ${(g.skills||[]).map(s=>`<span class="tile-tag">${esc(s)}</span>`).join('')}
         </div>
       </div>
       <div class="tbl-actions">
-        <button class="tbl-btn" onclick="openSkillEdit(${g.id})">Edit</button>
-        <button class="tbl-btn del" onclick="deleteSkillGroup(${g.id})">Delete</button>
+        <button class="tbl-btn" type="button" onclick="openSkillEdit(${g.id})">Edit</button>
+        <button class="tbl-btn del" type="button" onclick="deleteSkillGroup(${g.id})">Delete</button>
       </div>
     </div>
   `).join('');
@@ -839,81 +929,72 @@ function openSkillEdit(id) {
   document.getElementById('sk-label').value  = g.label;
   document.getElementById('sk-sort').value   = g.sort_order ?? 0;
   document.getElementById('sk-skills').value = (g.skills||[]).join(', ');
-  document.getElementById('skill-modal').classList.add('open');
+  skillModal.open();
 }
 
 async function saveSkillGroup() {
-  const id   = document.getElementById('sk-id').value;
+  const id = document.getElementById('sk-id').value;
   const body = {
     label:      document.getElementById('sk-label').value.trim(),
     skills:     document.getElementById('sk-skills').value.split(',').map(s=>s.trim()).filter(Boolean),
-    sort_order: parseInt(document.getElementById('sk-sort').value) || 0,
+    sort_order: intOrZero(document.getElementById('sk-sort').value),
   };
   if (!body.label) { toast('Label is required', true); return; }
-  const res = await fetch(`${API}/skills/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) { closeSkillModal(); toast('Skill group updated!'); await loadSkills(); }
-  else toast('Error saving', true);
+  try {
+    await apiFetch(`/skills/?id=${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    skillModal.close();
+    toast('Skill group updated!');
+    await loadSkills();
+  } catch (e) { toast('Error saving: ' + e.message, true); }
 }
 
 async function addSkillGroup() {
   const body = {
     label:      document.getElementById('sg-label').value.trim(),
     skills:     document.getElementById('sg-skills').value.split(',').map(s=>s.trim()).filter(Boolean),
-    sort_order: parseInt(document.getElementById('sg-sort').value) || 0,
+    sort_order: intOrZero(document.getElementById('sg-sort').value),
   };
   if (!body.label) { toast('Label is required', true); return; }
-  const res = await fetch(`${API}/skills/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) {
+  try {
+    await apiFetch('/skills/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     document.getElementById('sg-label').value  = '';
     document.getElementById('sg-skills').value = '';
     document.getElementById('sg-sort').value   = '0';
     toast('Skill group added!');
     await loadSkills();
-  } else toast('Error adding', true);
+  } catch (e) { toast('Error adding: ' + e.message, true); }
 }
 
 async function deleteSkillGroup(id) {
   if (!confirm('Delete this skill group?')) return;
-  const res = await fetch(`${API}/skills/?id=${id}`, { method:'DELETE' });
-  if (res.ok) { toast('Deleted'); await loadSkills(); }
-  else toast('Error deleting', true);
+  try {
+    await apiFetch(`/skills/?id=${id}`, { method:'DELETE' });
+    toast('Deleted');
+    await loadSkills();
+  } catch (e) { toast('Error deleting: ' + e.message, true); }
 }
-
-function closeSkillModal() { document.getElementById('skill-modal').classList.remove('open'); }
-function handleSkillModalClick(e) { if (e.target === document.getElementById('skill-modal')) closeSkillModal(); }
 
 // ── Resume ───────────────────────────────────────────────────
-async function loadResume() {
-  const res = await fetch(`${API}/uploads/resume.php`);
-  if (!res.ok) return;
-  const data = await res.json();
-  if (data.url) {
-    document.getElementById('resume-current').style.display = 'block';
-    document.getElementById('resume-link').href = data.url;
-  }
-}
-
 async function uploadResume(input) {
   if (!input.files[0]) return;
   const statusEl = document.getElementById('resume-status');
   statusEl.style.display = 'block';
   const fd = new FormData();
   fd.append('resume', input.files[0]);
-  const res = await fetch(`${API}/uploads/resume.php`, { method: 'POST', body: fd });
-  statusEl.style.display = 'none';
-  input.value = '';
-  if (res.ok) {
-    const data = await res.json();
+  try {
+    const data = await apiFetch('/uploads/resume.php', { method: 'POST', body: fd });
     document.getElementById('resume-current').style.display = 'block';
     document.getElementById('resume-link').href = data.url;
     toast('Resume uploaded!');
-  } else {
-    const err = await res.json().catch(() => ({}));
-    toast(err.error || 'Upload failed', true);
+  } catch (e) {
+    toast('Upload failed: ' + e.message, true);
+  } finally {
+    statusEl.style.display = 'none';
+    input.value = '';
   }
 }
 
-// ── Init ─────────────────────────────────────────────────────
+// ── Init — fetches run in parallel; each handles its own errors ─────────
 loadProjects();
 loadSettings();
 loadSkills();

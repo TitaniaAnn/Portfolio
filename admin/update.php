@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/util.php';
 
 $admin = current_admin();
 if (!$admin) {
@@ -9,37 +10,25 @@ if (!$admin) {
     exit;
 }
 
-// ── Migration definitions ──────────────────────────────────────────────────
-// Each entry: label, detail, a check() closure that returns true when already
-// applied, and the SQL to run when it is pending.
+// ── Migration definitions ────────────────────────────────────────────────
+// Each migration: a check() that returns true when already applied, and a
+// sql string to run when pending. Helper functions (column_exists,
+// table_exists, index_exists) live in includes/util.php.
 
 $migrations = [
     [
         'id'     => 'drop_image_url',
         'label'  => 'Remove legacy image_url column from projects',
-        'detail' => 'Drops the old single-image column that was replaced by the project_images table.',
-        'check'  => function() {
-            return db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'projects'
-                   AND COLUMN_NAME  = 'image_url'"
-            )->fetchColumn() == 0;
-        },
-        'sql' => "ALTER TABLE projects DROP COLUMN image_url",
+        'detail' => 'Drops the old single-image column replaced by project_images.',
+        'check'  => fn() => !column_exists('projects', 'image_url'),
+        'sql'    => "ALTER TABLE projects DROP COLUMN image_url",
     ],
     [
         'id'     => 'create_project_images',
         'label'  => 'Create project_images table',
         'detail' => 'One-to-many gallery images linked to each project.',
-        'check'  => function() {
-            return (bool) db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'project_images'"
-            )->fetchColumn();
-        },
-        'sql' => "CREATE TABLE IF NOT EXISTS project_images (
+        'check'  => fn() => table_exists('project_images'),
+        'sql'    => "CREATE TABLE IF NOT EXISTS project_images (
             id         INT AUTO_INCREMENT PRIMARY KEY,
             project_id INT NOT NULL,
             url        VARCHAR(512) NOT NULL,
@@ -50,43 +39,23 @@ $migrations = [
     [
         'id'     => 'add_short_description',
         'label'  => 'Add short_description column to projects',
-        'detail' => 'Short one- or two-sentence summary shown on project cards.',
-        'check'  => function() {
-            return (bool) db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'projects'
-                   AND COLUMN_NAME  = 'short_description'"
-            )->fetchColumn();
-        },
-        'sql' => "ALTER TABLE projects ADD COLUMN short_description TEXT AFTER title",
+        'detail' => 'Short summary shown on project cards.',
+        'check'  => fn() => column_exists('projects', 'short_description'),
+        'sql'    => "ALTER TABLE projects ADD COLUMN short_description TEXT AFTER title",
     ],
     [
         'id'     => 'add_summary_image',
         'label'  => 'Add summary_image column to projects',
         'detail' => 'URL of the hero image displayed on the project card.',
-        'check'  => function() {
-            return (bool) db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'projects'
-                   AND COLUMN_NAME  = 'summary_image'"
-            )->fetchColumn();
-        },
-        'sql' => "ALTER TABLE projects ADD COLUMN summary_image VARCHAR(512) AFTER demo_url",
+        'check'  => fn() => column_exists('projects', 'summary_image'),
+        'sql'    => "ALTER TABLE projects ADD COLUMN summary_image VARCHAR(512) AFTER demo_url",
     ],
     [
         'id'     => 'create_skill_groups',
         'label'  => 'Create skill_groups table',
-        'detail' => 'Stores the grouped skill tags displayed in the About section.',
-        'check'  => function() {
-            return (bool) db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'skill_groups'"
-            )->fetchColumn();
-        },
-        'sql' => "CREATE TABLE IF NOT EXISTS skill_groups (
+        'detail' => 'Stores the grouped skill tags shown in the About section.',
+        'check'  => fn() => table_exists('skill_groups'),
+        'sql'    => "CREATE TABLE IF NOT EXISTS skill_groups (
             id         INT AUTO_INCREMENT PRIMARY KEY,
             label      VARCHAR(255) NOT NULL,
             skills     TEXT,
@@ -97,15 +66,59 @@ $migrations = [
         'id'     => 'add_year',
         'label'  => 'Add year column to projects',
         'detail' => 'Year the project was created or shipped.',
-        'check'  => function() {
-            return (bool) db()->query(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = 'projects'
-                   AND COLUMN_NAME  = 'year'"
-            )->fetchColumn();
-        },
-        'sql' => "ALTER TABLE projects ADD COLUMN year YEAR NULL AFTER sort_order",
+        'check'  => fn() => column_exists('projects', 'year'),
+        'sql'    => "ALTER TABLE projects ADD COLUMN year YEAR NULL AFTER sort_order",
+    ],
+    [
+        'id'     => 'add_session_csrf_token',
+        'label'  => 'Add csrf_token column to sessions',
+        'detail' => 'Per-session CSRF token used to validate state-changing requests.',
+        'check'  => fn() => column_exists('sessions', 'csrf_token'),
+        'sql'    => "ALTER TABLE sessions ADD COLUMN csrf_token VARCHAR(128) NOT NULL DEFAULT '' AFTER admin_id",
+    ],
+    [
+        'id'     => 'create_audit_log',
+        'label'  => 'Create audit_log table',
+        'detail' => 'Records security-relevant events (logins, denials, admin writes).',
+        'check'  => fn() => table_exists('audit_log'),
+        'sql'    => "CREATE TABLE IF NOT EXISTS audit_log (
+            id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+            admin_id   INT NULL,
+            action     VARCHAR(64) NOT NULL,
+            detail     VARCHAR(1024) NULL,
+            ip         VARCHAR(64) NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_audit_log_created (created_at),
+            INDEX idx_audit_log_admin   (admin_id)
+        )",
+    ],
+    [
+        'id'     => 'index_sessions_expires',
+        'label'  => 'Index sessions(expires_at)',
+        'detail' => 'Speeds up the session-validity check on every authenticated request.',
+        'check'  => fn() => index_exists('sessions', 'idx_sessions_expires'),
+        'sql'    => "ALTER TABLE sessions ADD INDEX idx_sessions_expires (expires_at)",
+    ],
+    [
+        'id'     => 'index_projects_sort',
+        'label'  => 'Index projects(sort_order)',
+        'detail' => 'Speeds up the public project listing.',
+        'check'  => fn() => index_exists('projects', 'idx_projects_sort'),
+        'sql'    => "ALTER TABLE projects ADD INDEX idx_projects_sort (sort_order)",
+    ],
+    [
+        'id'     => 'index_skill_groups_sort',
+        'label'  => 'Index skill_groups(sort_order)',
+        'detail' => 'Speeds up the About-section skill query.',
+        'check'  => fn() => index_exists('skill_groups', 'idx_skill_groups_sort'),
+        'sql'    => "ALTER TABLE skill_groups ADD INDEX idx_skill_groups_sort (sort_order)",
+    ],
+    [
+        'id'     => 'index_project_images_project',
+        'label'  => 'Index project_images(project_id)',
+        'detail' => 'Speeds up the per-project image lookup.',
+        'check'  => fn() => index_exists('project_images', 'idx_project_images_project'),
+        'sql'    => "ALTER TABLE project_images ADD INDEX idx_project_images_project (project_id)",
     ],
 ];
 
@@ -113,6 +126,10 @@ $migrations = [
 $run_results = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'run') {
+    if (!hash_equals($_SESSION['csrf_form_token'] ?? '', $_POST['csrf_form_token'] ?? '')) {
+        http_response_code(403);
+        die('CSRF token mismatch. Reload the page and try again.');
+    }
     foreach ($migrations as $m) {
         if (($m['check'])()) {
             $run_results[$m['id']] = ['status' => 'skipped', 'msg' => 'Already applied — skipped'];
@@ -121,8 +138,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'run')
         try {
             db()->exec($m['sql']);
             $run_results[$m['id']] = ['status' => 'ok', 'msg' => 'Applied successfully'];
+            audit_log('migration.applied', $admin['id'], $m['id']);
         } catch (PDOException $e) {
+            error_log("[migration {$m['id']}] " . $e->getMessage());
             $run_results[$m['id']] = ['status' => 'error', 'msg' => $e->getMessage()];
+            audit_log('migration.failed', $admin['id'], $m['id'] . ': ' . $e->getMessage());
         }
     }
 }
@@ -135,6 +155,13 @@ unset($m);
 
 $pending_count = count(array_filter($migrations, fn($m) => !$m['applied']));
 $total         = count($migrations);
+
+// CSRF token for the form (renewed each render)
+session_start_secure();
+if (empty($_SESSION['csrf_form_token'])) {
+    $_SESSION['csrf_form_token'] = bin2hex(random_bytes(32));
+}
+$csrfFormToken = $_SESSION['csrf_form_token'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -155,27 +182,23 @@ $total         = count($migrations);
   body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh}
   body::before{content:'';position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)}
 
-  /* TOPBAR */
   .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;background:rgba(13,13,13,0.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
   .tb-left{display:flex;align-items:center;gap:1rem}
   .tb-logo{font-family:var(--display);font-size:1rem;font-weight:800;color:var(--amber)}
   .tb-breadcrumb{font-size:0.65rem;color:var(--muted);letter-spacing:0.1em}
   .tb-right{display:flex;align-items:center;gap:1rem}
   .btn-sm{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:0.62rem;letter-spacing:0.1em;padding:0.3rem 0.7rem;cursor:pointer;text-transform:uppercase;text-decoration:none;transition:all 0.2s}
-  .btn-sm:hover{border-color:var(--amber);color:var(--amber)}
+  .btn-sm:hover,.btn-sm:focus-visible{border-color:var(--amber);color:var(--amber);outline:none}
 
-  /* MAIN */
   .main{padding:5rem 2rem 4rem;max-width:820px;margin:0 auto}
   .page-title{font-family:var(--display);font-size:1.5rem;font-weight:700;margin-bottom:0.3rem}
   .page-sub{font-size:0.72rem;color:var(--muted);margin-bottom:2rem}
 
-  /* SUMMARY BAR */
   .summary{display:flex;align-items:center;gap:1.5rem;background:var(--bg2);border:1px solid var(--border);padding:1rem 1.2rem;margin-bottom:2rem}
   .summary-num{font-family:var(--display);font-size:1.5rem;font-weight:800;color:var(--amber);margin-right:0.3rem}
   .summary-label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em}
   .summary-divider{width:1px;height:30px;background:var(--border)}
 
-  /* MIGRATION LIST */
   .migration-list{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:2rem}
   .migration-row{background:var(--bg2);border:1px solid var(--border);padding:1rem 1.2rem;display:flex;align-items:flex-start;gap:1rem}
   .migration-row.applied{border-left:3px solid var(--green)}
@@ -189,14 +212,13 @@ $total         = count($migrations);
   .m-body{flex:1;min-width:0}
   .m-label{font-size:0.8rem;font-weight:600;margin-bottom:0.2rem}
   .m-detail{font-size:0.68rem;color:var(--muted);line-height:1.5}
-  .m-result{font-size:0.68rem;margin-top:0.4rem}
+  .m-result{font-size:0.68rem;margin-top:0.4rem;word-break:break-word}
   .m-result.ok{color:var(--green)}
   .m-result.error{color:var(--red)}
   .m-result.skipped{color:var(--muted)}
 
-  /* ACTIONS */
   .btn-run{background:var(--amber);color:#0d0d0d;border:none;padding:0.75rem 2rem;font-family:var(--mono);font-size:0.78rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s}
-  .btn-run:hover{background:#fbbf24}
+  .btn-run:hover,.btn-run:focus-visible{background:#fbbf24;outline:2px solid var(--amber);outline-offset:2px}
   .btn-run:disabled{opacity:0.4;cursor:not-allowed}
   .all-done{background:var(--bg2);border:1px solid var(--green);color:var(--green);padding:1rem 1.2rem;font-size:0.78rem;display:flex;align-items:center;gap:0.6rem}
 </style>
@@ -215,7 +237,7 @@ $total         = count($migrations);
 </div>
 
 <div class="main">
-  <div class="page-title">Database Migrations</div>
+  <h1 class="page-title">Database Migrations</h1>
   <div class="page-sub">Apply schema changes to bring the database up to date with the current codebase.</div>
 
   <div class="summary">
@@ -259,6 +281,7 @@ $total         = count($migrations);
   <?php else: ?>
   <form method="POST">
     <input type="hidden" name="action" value="run">
+    <input type="hidden" name="csrf_form_token" value="<?= htmlspecialchars($csrfFormToken) ?>">
     <button type="submit" class="btn-run" <?= $pending_count === 0 ? 'disabled' : '' ?>>
       ▶ Run <?= $pending_count ?> Pending Migration<?= $pending_count !== 1 ? 's' : '' ?>
     </button>
