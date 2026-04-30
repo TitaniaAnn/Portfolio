@@ -168,7 +168,7 @@
   .proj-carousel { background:#000; }
   .proj-carousel.no-images { display:none; }
   .carousel-img-wrap { position:relative; width:100%; line-height:0; }
-  .carousel-img-wrap img { width:100%; height:400px; object-fit:contain; background:#000; display:block; }
+  .carousel-img-wrap img { width:100%; height:400px; object-fit:contain; background:#000; display:block; cursor:zoom-in; }
   .carousel-btn { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15); color:var(--text); font-family:var(--mono); font-size:1.5rem; width:44px; height:44px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:2; line-height:1; }
   .carousel-btn:hover { border-color:var(--amber); color:var(--amber); background:rgba(0,0,0,0.8); }
   .carousel-btn.prev { left:0.7rem; }
@@ -179,6 +179,13 @@
   .carousel-counter { font-size:0.58rem; color:var(--muted); letter-spacing:0.12em; white-space:nowrap; }
   .carousel-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.3); cursor:pointer; transition:background 0.2s; border:none; padding:0; flex-shrink:0; }
   .carousel-dot.active { background:var(--amber); }
+
+  /* IMAGE LIGHTBOX */
+  .lightbox-overlay { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; padding:2rem; cursor:zoom-out; }
+  .lightbox-overlay.open { display:flex; }
+  .lightbox-img { max-width:100%; max-height:100%; object-fit:contain; cursor:default; user-select:none; }
+  .lightbox-close { position:absolute; top:1rem; right:1rem; z-index:1; background:rgba(0,0,0,0.65); border:1px solid var(--border); color:var(--muted); font-family:var(--mono); font-size:1rem; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .lightbox-close:hover { border-color:var(--red); color:var(--red); }
 
   /* DETAIL BODY */
   .proj-detail-body { padding:1.5rem 2rem 2rem; }
@@ -291,6 +298,12 @@
       <div class="proj-detail-links" id="pd-links"></div>
     </div>
   </div>
+</div>
+
+<!-- IMAGE LIGHTBOX -->
+<div class="lightbox-overlay" id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged image">
+  <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close enlarged image">✕</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="">
 </div>
 
 <script>
@@ -546,6 +559,17 @@ function carouselPrev() { carouselIdx = (carouselIdx - 1 + carouselImages.length
 function carouselNext() { carouselIdx = (carouselIdx + 1) % carouselImages.length; updateCarousel(); }
 function goCarousel(i)  { carouselIdx = i; updateCarousel(); }
 
+function openLightbox(src, alt) {
+  const img = document.getElementById('lightbox-img');
+  img.src = src;
+  img.alt = alt || '';
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+const lightboxIsOpen = () => document.getElementById('lightbox').classList.contains('open');
+
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('proj-detail-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeProjDetail();
@@ -553,7 +577,23 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('proj-detail-close').addEventListener('click', closeProjDetail);
   document.getElementById('carousel-prev').addEventListener('click', carouselPrev);
   document.getElementById('carousel-next').addEventListener('click', carouselNext);
+
+  // Click the carousel image to enlarge in the lightbox.
+  document.getElementById('carousel-img').addEventListener('click', function() {
+    if (this.src) openLightbox(this.src, this.alt);
+  });
+  // Click backdrop (anywhere except the <img>) to close. The image itself
+  // has cursor:default so it's clear it isn't a hit target.
+  document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target.id !== 'lightbox-img') closeLightbox();
+  });
+
   document.addEventListener('keydown', function(e) {
+    // Lightbox swallows Escape first so the underlying detail modal stays open.
+    if (lightboxIsOpen()) {
+      if (e.key === 'Escape') closeLightbox();
+      return;
+    }
     if (!document.getElementById('proj-detail-overlay').classList.contains('open')) return;
     if (e.key === 'Escape')      closeProjDetail();
     if (e.key === 'ArrowLeft')   carouselPrev();
