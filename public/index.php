@@ -454,7 +454,11 @@ function renderDesc(text) {
     const cls = lang ? ` class="lang-${lang}"` : '';
     return place(`<pre><code${cls}>${body}</code></pre>`);
   });
-  // Inline code: `...` (single line)
+  // Double-backtick inline code: ``…`` — allows literal ` inside (GitHub-style).
+  // Run before single-backtick so the doubles win. Optional single space at
+  // either end is stripped, matching the common `` `code` `` idiom.
+  h = h.replace(/``\s?(.+?)\s?``/g, (_, body) => place(`<code>${body}</code>`));
+  // Inline code: `…` (single line, no backticks inside)
   h = h.replace(/`([^`\n]+)`/g, (_, body) => place(`<code>${body}</code>`));
 
   // Links [text](url) — before bold so brackets/parens don't collide

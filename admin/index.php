@@ -171,6 +171,21 @@ $csrfToken = $admin['csrf_token'] ?? '';
   .account-meta .row{margin-bottom:0.5rem}
   .account-meta .amber{color:var(--amber)}
   .account-actions{margin-top:1.2rem}
+
+  /* AUDIT LOG */
+  .audit-controls{display:flex;gap:0.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+  .audit-controls input{flex:1;max-width:400px}
+  .audit-table{width:100%;border-collapse:collapse;margin-top:0.5rem}
+  .audit-table th{font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:0.5rem 0.7rem;border-bottom:1px solid var(--border);text-align:left;font-weight:400}
+  .audit-table td{padding:0.55rem 0.7rem;border-bottom:1px solid var(--border);font-size:0.7rem;vertical-align:top;color:var(--text)}
+  .audit-table tr:hover td{background:var(--bg3)}
+  .audit-time{font-family:var(--mono);font-size:0.62rem;color:var(--muted);white-space:nowrap}
+  .audit-action{display:inline-block;font-size:0.58rem;letter-spacing:0.08em;color:var(--amber);background:var(--amber-glow);padding:0.1rem 0.45rem;font-family:var(--mono)}
+  .audit-detail{color:var(--muted);font-size:0.66rem;word-break:break-word;max-width:380px;line-height:1.5}
+  .audit-ip{font-family:var(--mono);font-size:0.62rem;color:var(--muted);white-space:nowrap}
+  .audit-pager{display:flex;align-items:center;gap:1rem;margin-top:1.2rem;justify-content:center}
+  .audit-pager .btn-reset:disabled{opacity:0.3;cursor:not-allowed}
+  #audit-page-info{font-size:0.7rem;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -204,6 +219,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
     <button class="nav-item" type="button" onclick="showPanel('settings', this)"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</button>
     <button class="nav-item" type="button" onclick="showPanel('resume', this)"><span class="nav-icon" aria-hidden="true">▤</span> Resume</button>
     <div class="nav-section">System</div>
+    <button class="nav-item" type="button" onclick="showPanel('audit', this)"><span class="nav-icon" aria-hidden="true">≣</span> Audit Log</button>
     <a href="/admin/update.php" class="nav-item"><span class="nav-icon" aria-hidden="true">⬆</span> DB Migrations</a>
     <div class="nav-section">Account</div>
     <button class="nav-item" type="button" onclick="showPanel('account', this)"><span class="nav-icon" aria-hidden="true">◉</span> Account</button>
@@ -258,7 +274,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
         <div class="form-group full">
           <label for="ap-desc">Full Description <span class="req">*</span></label>
           <textarea id="ap-desc" rows="4" placeholder="Detailed description shown in the project detail view"></textarea>
-          <div class="hint">Markdown: **bold** · *italic* · `code` · ```block``` · [text](url) · # Heading · ## Sub-heading</div>
+          <div class="hint">Markdown: **bold** · *italic* · `code` · ``code with `backticks` `` · ```block``` · [text](url) · # Heading · ## Sub-heading</div>
         </div>
         <div class="form-group">
           <label for="ap-lang">Primary Language <span class="req">*</span></label>
@@ -380,6 +396,37 @@ $csrfToken = $admin['csrf_token'] ?? '';
       </div>
     </div>
 
+    <!-- ── AUDIT LOG ── -->
+    <div class="panel" id="panel-audit">
+      <div class="panel-header">
+        <h1 class="panel-title">Audit Log</h1>
+        <div class="panel-sub">Security-relevant events: logins, denials, admin writes, migrations</div>
+      </div>
+      <div class="audit-controls">
+        <input type="text" id="audit-filter" placeholder="Filter by action (e.g. login, project, settings, migration)" aria-label="Filter audit log by action">
+        <button class="btn-reset" type="button" onclick="loadAudit()">Refresh</button>
+      </div>
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Admin</th>
+            <th>Action</th>
+            <th>Detail</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr class="empty-row"><td colspan="5">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="audit-pager">
+        <button class="btn-reset" type="button" id="audit-prev" onclick="auditPage(-1)">← Prev</button>
+        <span id="audit-page-info">—</span>
+        <button class="btn-reset" type="button" id="audit-next" onclick="auditPage(1)">Next →</button>
+      </div>
+    </div>
+
     <!-- ── ACCOUNT ── -->
     <div class="panel" id="panel-account">
       <div class="panel-header">
@@ -421,7 +468,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
       <div class="form-grid">
         <div class="form-group full"><label for="edit-title">Title <span class="req">*</span></label><input type="text" id="edit-title"></div>
         <div class="form-group full"><label for="edit-short-desc">Short Description <span class="req">*</span></label><textarea id="edit-short-desc" rows="2"></textarea></div>
-        <div class="form-group full"><label for="edit-desc">Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · `code` · ```block``` · [text](url) · # Heading · ## Sub-heading</div></div>
+        <div class="form-group full"><label for="edit-desc">Full Description <span class="req">*</span></label><textarea id="edit-desc" rows="4"></textarea><div class="hint">Markdown: **bold** · *italic* · `code` · ``code with `backticks` `` · ```block``` · [text](url) · # Heading · ## Sub-heading</div></div>
         <div class="form-group"><label for="edit-lang">Language <span class="req">*</span></label>
           <input type="text" id="edit-lang" list="lang-options" placeholder="e.g. JavaScript">
         </div>
@@ -1000,11 +1047,75 @@ async function uploadResume(input) {
   }
 }
 
+// ── Audit log ────────────────────────────────────────────────
+const AUDIT_PAGE_SIZE = 50;
+let auditOffset = 0;
+let auditTotal  = 0;
+let auditFilterTimer = null;
+
+async function loadAudit() {
+  const filter = document.getElementById('audit-filter').value.trim();
+  const params = new URLSearchParams({ limit: String(AUDIT_PAGE_SIZE), offset: String(auditOffset) });
+  if (filter) params.set('action', filter);
+  try {
+    const data = await apiFetch('/audit/?' + params.toString());
+    auditTotal = data.total || 0;
+    renderAuditRows(data.rows || []);
+    const info = document.getElementById('audit-page-info');
+    if (auditTotal === 0) {
+      info.textContent = 'No entries';
+    } else {
+      const start = auditOffset + 1;
+      const end   = Math.min(auditOffset + AUDIT_PAGE_SIZE, auditTotal);
+      info.textContent = `${start}–${end} of ${auditTotal}`;
+    }
+    document.getElementById('audit-prev').disabled = auditOffset === 0;
+    document.getElementById('audit-next').disabled = auditOffset + AUDIT_PAGE_SIZE >= auditTotal;
+  } catch (e) {
+    toast('Failed to load audit log: ' + e.message, true);
+  }
+}
+
+function renderAuditRows(rows) {
+  const tbody = document.getElementById('audit-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No entries match.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const who = r.admin_id
+      ? esc(r.admin_name || r.admin_email || ('#' + r.admin_id))
+      : '—';
+    return `
+      <tr>
+        <td class="audit-time">${esc(r.created_at)}</td>
+        <td>${who}</td>
+        <td><span class="audit-action">${esc(r.action)}</span></td>
+        <td class="audit-detail">${esc(r.detail || '—')}</td>
+        <td class="audit-ip">${esc(r.ip || '—')}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function auditPage(dir) {
+  const next = auditOffset + dir * AUDIT_PAGE_SIZE;
+  auditOffset = Math.max(0, next);
+  loadAudit();
+}
+
+document.getElementById('audit-filter').addEventListener('input', () => {
+  auditOffset = 0;
+  clearTimeout(auditFilterTimer);
+  auditFilterTimer = setTimeout(loadAudit, 250);
+});
+
 // ── Init — fetches run in parallel; each handles its own errors ─────────
 loadProjects();
 loadSettings();
 loadSkills();
 loadResume();
+loadAudit();
 </script>
 </body>
 </html>
