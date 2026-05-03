@@ -239,6 +239,11 @@ $csrfToken = $admin['csrf_token'] ?? '';
         <div class="stat-card"><div class="stat-card-num" id="count-active">—</div><div class="stat-card-label">Active</div></div>
         <div class="stat-card"><div class="stat-card-num" id="count-wip">—</div><div class="stat-card-label">WIP</div></div>
       </div>
+      <div class="audit-controls" style="justify-content:flex-end">
+        <button class="btn-reset" type="button" onclick="exportAllProjects()">⬇ Export All</button>
+        <button class="btn-reset" type="button" onclick="document.getElementById('import-file').click()">⬆ Import</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden onchange="importProjects(this)">
+      </div>
       <table class="proj-table">
         <thead>
           <tr>
@@ -728,6 +733,7 @@ function renderTable(projects) {
       <td>
         <div class="tbl-actions">
           <button class="tbl-btn edit" type="button" onclick="openEdit(${p.id})">Edit</button>
+          <button class="tbl-btn"      type="button" onclick="exportProject(${p.id})">Export</button>
           <button class="tbl-btn del"  type="button" onclick="deleteProject(${p.id})">Delete</button>
         </div>
       </td>
@@ -877,6 +883,81 @@ async function deleteProject(id) {
     toast('Project deleted');
     await loadProjects();
   } catch (e) { toast('Error deleting: ' + e.message, true); }
+}
+
+// ── Import / Export ──────────────────────────────────────────
+// Strip server-side fields so re-importing doesn't try to preserve IDs
+// or stale timestamps.
+function stripForExport(p) {
+  const { id, created_at, updated_at, ...rest } = p;
+  return rest;
+}
+
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function safeFilename(s) {
+  return (s || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'project';
+}
+
+function exportAllProjects() {
+  if (!allProjects.length) { toast('Nothing to export', true); return; }
+  const payload = allProjects.map(stripForExport);
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJson(payload, `projects-${date}.json`);
+  toast(`Exported ${payload.length} project${payload.length === 1 ? '' : 's'}`);
+}
+
+function exportProject(id) {
+  const p = allProjects.find(x => x.id === id);
+  if (!p) { toast('Project not found', true); return; }
+  downloadJson(stripForExport(p), `project-${safeFilename(p.title)}.json`);
+  toast('Exported');
+}
+
+async function importProjects(input) {
+  const file = input.files[0];
+  if (!file) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (e) {
+    toast('Not valid JSON: ' + e.message, true);
+    input.value = '';
+    return;
+  }
+  const count = Array.isArray(parsed) ? parsed.length : (parsed && typeof parsed === 'object' ? 1 : 0);
+  if (!count) { toast('No projects in file', true); input.value = ''; return; }
+  if (!confirm(`Import ${count} project${count === 1 ? '' : 's'}? Existing titles will be skipped.`)) {
+    input.value = '';
+    return;
+  }
+  try {
+    const res = await apiFetch('/projects/import.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed),
+    });
+    const parts = [`Created ${res.created}`];
+    if (res.skipped) parts.push(`skipped ${res.skipped}`);
+    if (res.errors && res.errors.length) parts.push(`${res.errors.length} error${res.errors.length === 1 ? '' : 's'}`);
+    toast(parts.join(' · '), Boolean(res.errors && res.errors.length));
+    if (res.errors && res.errors.length) console.warn('Import errors:', res.errors);
+    await loadProjects();
+  } catch (e) {
+    toast('Import failed: ' + e.message, true);
+  } finally {
+    input.value = '';
+  }
 }
 
 // ── Edit modal ───────────────────────────────────────────────
