@@ -46,3 +46,20 @@ function validate_upload(array $file, array $allowedMimes, int $maxBytes): array
 function random_filename(string $ext): string {
     return bin2hex(random_bytes(16)) . '.' . $ext;
 }
+
+/**
+ * Delete an uploaded file given its public URL (e.g. "/uploads/projects/abc.png").
+ * No-op for external URLs (anything that doesn't start with /uploads/) and
+ * for paths that don't resolve inside the uploads directory — defense in
+ * depth against a stored URL that escapes its expected prefix. Silently
+ * tolerates already-missing files; cleanup is best-effort.
+ */
+function delete_local_upload(string $url): void {
+    if (!str_starts_with($url, '/uploads/')) return;
+    $base = realpath(dirname(__DIR__) . '/uploads');
+    if ($base === false) return;
+    $abs = realpath(dirname(__DIR__) . $url);
+    if ($abs === false) return;
+    if (!str_starts_with($abs, $base . DIRECTORY_SEPARATOR)) return;
+    @unlink($abs);
+}

@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/response.php';
 require_once __DIR__ . '/../../includes/util.php';
+require_once __DIR__ . '/../../includes/upload.php';
 
 cors_headers();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -79,12 +80,30 @@ if ($method === 'PUT') {
 
     $fields = [];
     $params = [];
-    $simpleStrings = ['title','short_description','description','language','status'];
-    foreach ($simpleStrings as $f) {
-        if (array_key_exists($f, $b)) {
-            $fields[] = "`$f` = ?";
-            $params[] = trim((string)$b[$f]) !== '' ? trim((string)$b[$f]) : null;
+
+    // Required NOT NULL columns. Reject empties up front so we never feed
+    // the DB a value that violates its constraint and 500s.
+    $requiredLimits = ['title' => 255, 'description' => 0, 'language' => 100];
+    foreach ($requiredLimits as $f => $max) {
+        if (!array_key_exists($f, $b)) continue;
+        $val = trim((string)$b[$f]);
+        if ($val === '') json_response(['error' => "$f cannot be empty"], 422);
+        if ($max > 0 && strlen($val) > $max) json_response(['error' => "$f too long"], 422);
+        $fields[] = "`$f` = ?";
+        $params[] = $val;
+    }
+    if (array_key_exists('short_description', $b)) {
+        $val = trim((string)$b['short_description']);
+        $fields[] = '`short_description` = ?';
+        $params[] = $val !== '' ? $val : null;
+    }
+    if (array_key_exists('status', $b)) {
+        $val = $b['status'] ?? '';
+        if (!in_array($val, ['active','wip','archived'], true)) {
+            json_response(['error' => 'invalid status'], 422);
         }
+        $fields[] = '`status` = ?';
+        $params[] = $val;
     }
     foreach (['github_url','demo_url'] as $f) {
         if (array_key_exists($f, $b)) {
@@ -115,8 +134,15 @@ if ($method === 'PUT') {
     }
 
     if (array_key_exists('images', $b)) {
+        $newUrls = string_list($b['images']);
+        $oldUrls = fetch_images($id);
         db()->prepare('DELETE FROM project_images WHERE project_id = ?')->execute([$id]);
-        insert_project_images($id, string_list($b['images']));
+        insert_project_images($id, $newUrls);
+        // Drop any uploaded files that aren't being kept — orphaned otherwise.
+        $keep = array_flip($newUrls);
+        foreach ($oldUrls as $u) {
+            if (!isset($keep[$u])) delete_local_upload($u);
+        }
     }
 
     $row = load_project($id);
@@ -145,7 +171,10 @@ if ($method === 'PATCH') {
 // ── DELETE ──────────────────────────────────────────────────
 if ($method === 'DELETE') {
     if (!$id) json_response(['error' => 'id required'], 422);
+    // Snapshot file URLs before the FK cascade drops project_images rows.
+    $imgUrls = fetch_images($id);
     db()->prepare('DELETE FROM projects WHERE id = ?')->execute([$id]);
+    foreach ($imgUrls as $u) delete_local_upload($u);
     audit_log('project.delete', $admin['id'], "id={$id}");
     json_response(['success' => true, 'deleted_id' => $id]);
 }

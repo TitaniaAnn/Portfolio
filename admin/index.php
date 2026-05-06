@@ -204,7 +204,10 @@ $csrfToken = $admin['csrf_token'] ?? '';
       <span><?= htmlspecialchars($admin['name']) ?></span>
     </div>
     <a href="/" class="btn-sm">← Site</a>
-    <a href="/api/auth/logout.php" class="btn-sm">Logout</a>
+    <form action="/api/auth/logout.php" method="post" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+      <button type="submit" class="btn-sm">Logout</button>
+    </form>
   </div>
 </div>
 
@@ -214,6 +217,7 @@ $csrfToken = $admin['csrf_token'] ?? '';
     <div class="nav-section">Content</div>
     <button class="nav-item active" type="button" onclick="showPanel('projects', this)"><span class="nav-icon" aria-hidden="true">◈</span> Projects</button>
     <button class="nav-item" type="button" onclick="showPanel('add-project', this)"><span class="nav-icon" aria-hidden="true">＋</span> Add Project</button>
+    <button class="nav-item" type="button" onclick="showPanel('writing', this)"><span class="nav-icon" aria-hidden="true">✎</span> Writing</button>
     <button class="nav-item" type="button" onclick="showPanel('skills', this)"><span class="nav-icon" aria-hidden="true">◧</span> Skills</button>
     <div class="nav-section">Site</div>
     <button class="nav-item" type="button" onclick="showPanel('settings', this)"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</button>
@@ -351,6 +355,33 @@ $csrfToken = $admin['csrf_token'] ?? '';
       </div>
     </div>
 
+    <!-- ── WRITING ── -->
+    <div class="panel" id="panel-writing">
+      <div class="panel-header">
+        <h1 class="panel-title">Writing</h1>
+        <div class="panel-sub">Markdown posts published at <a href="/writing/" target="_blank" style="color:var(--amber)">/writing/</a> · <a href="/writing/feed.xml" target="_blank" style="color:var(--muted);font-size:0.7rem">RSS</a></div>
+      </div>
+
+      <div class="audit-controls" style="justify-content:flex-end;margin-bottom:1.5rem">
+        <button class="btn-save" type="button" onclick="newPostForm()">＋ New Post</button>
+      </div>
+
+      <table class="proj-table" id="posts-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Tags</th>
+            <th>Status</th>
+            <th>Published</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="posts-tbody">
+          <tr class="empty-row"><td colspan="5">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- ── SETTINGS ── -->
     <div class="panel" id="panel-settings">
       <div class="panel-header">
@@ -453,7 +484,10 @@ $csrfToken = $admin['csrf_token'] ?? '';
           <div>Session expires in 8 hours of inactivity</div>
         </div>
         <div class="account-actions">
-          <a href="/api/auth/logout.php" class="btn-reset" style="display:inline-block;text-decoration:none">Sign Out</a>
+          <form action="/api/auth/logout.php" method="post" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+            <button type="submit" class="btn-reset" style="display:inline-block">Sign Out</button>
+          </form>
         </div>
       </div>
     </div>
@@ -518,6 +552,103 @@ $csrfToken = $admin['csrf_token'] ?? '';
       <div class="form-actions">
         <button class="btn-save" type="button" onclick="saveSkillGroup()">💾 Save Changes</button>
         <button class="btn-reset" type="button" data-modal-close>Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POST EDIT MODAL -->
+<style>
+  .post-modal{max-width:920px}
+  .post-modal-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1rem}
+  .post-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--mono);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.6rem 1rem;cursor:pointer;transition:all 0.2s}
+  .post-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+  .post-tab:hover{color:var(--text)}
+  .post-pane{display:none}
+  .post-pane.active{display:block}
+  #post-body{font-family:var(--mono);min-height:380px;line-height:1.55}
+  .post-preview-pane{background:var(--bg);border:1px solid var(--border);padding:1.5rem;min-height:380px;max-height:60vh;overflow-y:auto;font-family:var(--mono);font-size:0.85rem;line-height:1.7}
+  .post-preview-pane h1,.post-preview-pane h2,.post-preview-pane h3{font-family:var(--display);margin:1.2rem 0 0.6rem}
+  .post-preview-pane h1{font-size:1.4rem}
+  .post-preview-pane h2{font-size:1.15rem}
+  .post-preview-pane h3{font-size:1rem}
+  .post-preview-pane code{background:var(--bg3);border:1px solid var(--border);padding:0.05rem 0.3rem;color:var(--amber);font-size:0.85em}
+  .post-preview-pane pre{background:var(--bg2);border:1px solid var(--border);padding:0.8rem 1rem;overflow-x:auto;margin:1rem 0}
+  .post-preview-pane pre code{background:none;border:none;padding:0;color:var(--text)}
+  .post-preview-pane img{max-width:100%;height:auto;border:1px solid var(--border);margin:1rem 0;display:block}
+  .post-preview-pane blockquote{border-left:3px solid var(--amber-dim);padding:0.5rem 1rem;margin:1rem 0;color:var(--muted)}
+  .post-preview-pane a{color:var(--amber)}
+  .post-preview-pane p{margin:0 0 1rem}
+  .post-preview-pane ul,.post-preview-pane ol{margin:0 0 1rem 1.5rem}
+
+  .project-checks{display:flex;flex-direction:column;gap:0.4rem;max-height:180px;overflow-y:auto;border:1px solid var(--border);background:var(--bg);padding:0.6rem 0.8rem}
+  .project-check{display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;cursor:pointer}
+  .project-check input{width:auto}
+
+  .pub-toggle{display:flex;align-items:center;gap:0.6rem;font-size:0.78rem}
+  .pub-toggle input{width:auto}
+  .post-cover-row{display:flex;align-items:center;gap:0.6rem}
+  .post-cover-row input{flex:1}
+  .post-cover-thumb{width:44px;height:44px;background:var(--bg3);border:1px solid var(--border);object-fit:cover;flex-shrink:0}
+</style>
+<div class="modal-overlay" id="post-modal" role="dialog" aria-modal="true" aria-labelledby="post-modal-title">
+  <div class="modal post-modal">
+    <div class="modal-header">
+      <div class="modal-title" id="post-modal-title">New Post</div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Close post dialog">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="post-id">
+      <div class="form-grid">
+        <div class="form-group full"><label for="post-title">Title <span class="req">*</span></label><input type="text" id="post-title" oninput="suggestSlug(this.value)"></div>
+        <div class="form-group"><label for="post-slug">Slug</label><input type="text" id="post-slug" placeholder="auto-from-title"><div class="hint">URL: /writing/&lt;slug&gt;/</div></div>
+        <div class="form-group"><label for="post-published-at">Publish Date</label><input type="datetime-local" id="post-published-at"><div class="hint">Leave blank to use now</div></div>
+        <div class="form-group full"><label for="post-excerpt">Excerpt</label><textarea id="post-excerpt" rows="2" placeholder="Optional summary used on the index card and in social shares"></textarea><div class="hint">Auto-generated from the body if left blank.</div></div>
+        <div class="form-group full">
+          <label for="post-cover">Cover Image (URL)</label>
+          <div class="post-cover-row">
+            <input type="url" id="post-cover" placeholder="https://… or /uploads/projects/…" oninput="updateCoverThumb()">
+            <img id="post-cover-thumb" class="post-cover-thumb" alt="" style="display:none">
+            <label class="btn-reset" style="cursor:pointer;display:inline-block;margin:0">
+              Upload
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden onchange="uploadPostCover(this)">
+            </label>
+          </div>
+          <div id="post-cover-status" class="img-uploading" style="display:none">Uploading…</div>
+        </div>
+        <div class="form-group full"><label for="post-tags">Tags</label><input type="text" id="post-tags" placeholder="rust, debugging, war-stories"><div class="hint">Comma-separated</div></div>
+
+        <div class="form-group full">
+          <label>Body <span class="req">*</span> · <span style="text-transform:none;letter-spacing:0;font-size:0.65rem;color:var(--muted)">markdown — paste from your editor</span></label>
+          <div class="post-modal-tabs" role="tablist">
+            <button class="post-tab active" type="button" role="tab" data-pane="post-pane-edit">Write</button>
+            <button class="post-tab"        type="button" role="tab" data-pane="post-pane-preview">Preview</button>
+          </div>
+          <div class="post-pane active" id="post-pane-edit">
+            <textarea id="post-body" rows="18" placeholder="# My Post&#10;&#10;Write in markdown. Embed images with ![alt](/uploads/projects/foo.png).&#10;&#10;Drag images into the upload field above to get a URL."></textarea>
+          </div>
+          <div class="post-pane" id="post-pane-preview" aria-live="polite">
+            <div class="post-preview-pane" id="post-preview-html"><em style="color:var(--muted)">Click Preview to render…</em></div>
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label>Linked Projects</label>
+          <div class="project-checks" id="post-project-checks"><span style="color:var(--muted);font-size:0.7rem">Loading projects…</span></div>
+          <div class="hint">Shown at the bottom of the post.</div>
+        </div>
+
+        <div class="form-group full">
+          <label class="pub-toggle">
+            <input type="checkbox" id="post-published">
+            <span>Published — visible at /writing/ and in the RSS feed</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-save" type="button" onclick="savePost()">💾 Save</button>
+        <button class="btn-reset" type="button" data-modal-close>Cancel</button>
+        <button class="btn-reset" type="button" id="post-delete-btn" onclick="deleteCurrentPost()" style="margin-left:auto;color:var(--red);border-color:var(--border);display:none">Delete</button>
       </div>
     </div>
   </div>
@@ -670,6 +801,7 @@ function bindModal(modalId, { onOpen, onClose, focusSelector } = {}) {
 
 const editModal  = bindModal('edit-modal',  { onClose: resetEditImages, focusSelector: '#edit-title' });
 const skillModal = bindModal('skill-modal', { focusSelector: '#sk-label' });
+const postModal  = bindModal('post-modal',  { focusSelector: '#post-title' });
 
 // ── Loaders ──────────────────────────────────────────────────
 async function loadProjects() {
@@ -1191,12 +1323,243 @@ document.getElementById('audit-filter').addEventListener('input', () => {
   auditFilterTimer = setTimeout(loadAudit, 250);
 });
 
+// ── Writing posts ────────────────────────────────────────────
+let allPosts = [];
+
+async function loadPosts() {
+  try {
+    allPosts = await apiFetch('/posts/') || [];
+    renderPostsTable();
+  } catch (e) { toast('Failed to load posts: ' + e.message, true); }
+}
+
+function renderPostsTable() {
+  const tbody = document.getElementById('posts-tbody');
+  if (!allPosts.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No posts yet — click ＋ New Post.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allPosts.map(p => {
+    const date = p.published_at ? new Date(p.published_at.replace(' ', 'T')).toLocaleDateString() : '—';
+    const status = p.is_published
+      ? '<span class="status-badge active">Published</span>'
+      : '<span class="status-badge wip">Draft</span>';
+    const tags = (p.tags || []).slice(0, 3).map(t => `<span class="proj-lang-badge" style="margin-right:0.2rem">${esc(t)}</span>`).join('');
+    return `
+      <tr>
+        <td><strong>${esc(p.title)}</strong><div style="font-size:0.6rem;color:var(--muted);margin-top:0.2rem">/writing/${esc(p.slug)}/</div></td>
+        <td>${tags || '—'}</td>
+        <td>${status}</td>
+        <td style="font-size:0.7rem;color:var(--muted)">${esc(date)}</td>
+        <td>
+          <div class="tbl-actions">
+            <button class="tbl-btn edit" type="button" onclick="openPostEdit(${p.id})">Edit</button>
+            ${p.is_published ? `<a class="tbl-btn" href="/writing/${encodeURIComponent(p.slug)}/" target="_blank">View</a>` : ''}
+            <button class="tbl-btn del" type="button" onclick="deletePost(${p.id})">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function newPostForm() {
+  document.getElementById('post-modal-title').textContent = 'New Post';
+  document.getElementById('post-id').value           = '';
+  document.getElementById('post-title').value        = '';
+  document.getElementById('post-slug').value         = '';
+  document.getElementById('post-excerpt').value      = '';
+  document.getElementById('post-cover').value        = '';
+  document.getElementById('post-tags').value         = '';
+  document.getElementById('post-body').value         = '';
+  document.getElementById('post-published').checked  = false;
+  document.getElementById('post-published-at').value = '';
+  document.getElementById('post-delete-btn').style.display = 'none';
+  document.getElementById('post-preview-html').innerHTML = '<em style="color:var(--muted)">Click Preview to render…</em>';
+  switchPostTab('post-pane-edit');
+  renderProjectChecks([]);
+  updateCoverThumb();
+  postModal.open();
+}
+
+async function openPostEdit(id) {
+  try {
+    const p = await apiFetch(`/posts/?id=${id}`);
+    document.getElementById('post-modal-title').textContent = 'Edit Post';
+    document.getElementById('post-id').value           = p.id;
+    document.getElementById('post-title').value        = p.title || '';
+    document.getElementById('post-slug').value         = p.slug || '';
+    document.getElementById('post-excerpt').value      = p.excerpt || '';
+    document.getElementById('post-cover').value        = p.cover_image || '';
+    document.getElementById('post-tags').value         = (p.tags || []).join(', ');
+    document.getElementById('post-body').value         = p.body_markdown || '';
+    document.getElementById('post-published').checked  = !!p.is_published;
+    document.getElementById('post-published-at').value = p.published_at ? p.published_at.replace(' ', 'T').slice(0, 16) : '';
+    document.getElementById('post-delete-btn').style.display = '';
+    document.getElementById('post-preview-html').innerHTML = '<em style="color:var(--muted)">Click Preview to render…</em>';
+    switchPostTab('post-pane-edit');
+    renderProjectChecks(p.project_ids || []);
+    updateCoverThumb();
+    postModal.open();
+  } catch (e) {
+    toast('Failed to load post: ' + e.message, true);
+  }
+}
+
+function renderProjectChecks(selectedIds) {
+  const wrap = document.getElementById('post-project-checks');
+  if (!allProjects.length) {
+    wrap.innerHTML = '<span style="color:var(--muted);font-size:0.7rem">No projects to link yet.</span>';
+    return;
+  }
+  const sel = new Set(selectedIds.map(Number));
+  wrap.innerHTML = allProjects.map(p => `
+    <label class="project-check">
+      <input type="checkbox" name="post-project" value="${p.id}" ${sel.has(p.id) ? 'checked' : ''}>
+      <span>${esc(p.title)} <span style="color:var(--muted);font-size:0.65rem">· ${esc(p.language)}</span></span>
+    </label>
+  `).join('');
+}
+
+function suggestSlug(title) {
+  const slugInput = document.getElementById('post-slug');
+  const id = document.getElementById('post-id').value;
+  // Only auto-fill the slug for *new* posts and only while the user hasn't
+  // typed their own — clobbering an edited slug would break URLs.
+  if (id) return;
+  if (slugInput.dataset.touched === '1') return;
+  slugInput.value = (title || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120);
+}
+document.getElementById('post-slug').addEventListener('input', e => { e.target.dataset.touched = '1'; });
+
+function updateCoverThumb() {
+  const url = document.getElementById('post-cover').value.trim();
+  const img = document.getElementById('post-cover-thumb');
+  if (url) { img.src = url; img.style.display = ''; }
+  else     { img.src = '';  img.style.display = 'none'; }
+}
+
+async function uploadPostCover(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('post-cover-status');
+  status.style.display = 'block';
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    const data = await apiFetch('/uploads/', { method: 'POST', body: fd });
+    if (data && data.url) {
+      document.getElementById('post-cover').value = data.url;
+      updateCoverThumb();
+    }
+  } catch (e) {
+    toast('Upload failed: ' + e.message, true);
+  } finally {
+    status.style.display = 'none';
+    input.value = '';
+  }
+}
+
+function switchPostTab(paneId) {
+  document.querySelectorAll('#post-modal .post-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.pane === paneId);
+  });
+  document.querySelectorAll('#post-modal .post-pane').forEach(p => {
+    p.classList.toggle('active', p.id === paneId);
+  });
+  if (paneId === 'post-pane-preview') refreshPreview();
+}
+document.querySelectorAll('#post-modal .post-tab').forEach(t => {
+  t.addEventListener('click', () => switchPostTab(t.dataset.pane));
+});
+
+async function refreshPreview() {
+  const md = document.getElementById('post-body').value;
+  const target = document.getElementById('post-preview-html');
+  if (!md.trim()) { target.innerHTML = '<em style="color:var(--muted)">Nothing to preview yet.</em>'; return; }
+  target.innerHTML = '<em style="color:var(--muted)">Rendering…</em>';
+  try {
+    const res = await apiFetch('/posts/preview.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body_markdown: md }),
+    });
+    target.innerHTML = res.html || '<em style="color:var(--muted)">(empty)</em>';
+  } catch (e) {
+    target.innerHTML = `<span style="color:var(--red)">Preview failed: ${esc(e.message)}</span>`;
+  }
+}
+
+function gatherPostBody() {
+  const projectIds = Array.from(document.querySelectorAll('#post-project-checks input[name=post-project]:checked'))
+    .map(el => parseInt(el.value, 10));
+  let publishedAt = document.getElementById('post-published-at').value;
+  if (publishedAt) publishedAt = publishedAt.replace('T', ' ') + ':00';
+  return {
+    title:         document.getElementById('post-title').value.trim(),
+    slug:          document.getElementById('post-slug').value.trim(),
+    excerpt:       document.getElementById('post-excerpt').value.trim(),
+    cover_image:   document.getElementById('post-cover').value.trim(),
+    tags:          document.getElementById('post-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+    body_markdown: document.getElementById('post-body').value,
+    is_published:  document.getElementById('post-published').checked,
+    published_at:  publishedAt || null,
+    project_ids:   projectIds,
+  };
+}
+
+async function savePost() {
+  const id   = document.getElementById('post-id').value;
+  const body = gatherPostBody();
+  if (!body.title || !body.body_markdown.trim()) {
+    toast('Title and body are required', true);
+    return;
+  }
+  try {
+    if (id) {
+      await apiFetch(`/posts/?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      toast('Post updated');
+    } else {
+      await apiFetch('/posts/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      toast('Post created');
+    }
+    postModal.close();
+    await loadPosts();
+  } catch (e) {
+    toast('Save failed: ' + e.message, true);
+  }
+}
+
+async function deleteCurrentPost() {
+  const id = document.getElementById('post-id').value;
+  if (!id) return;
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/posts/?id=${id}`, { method: 'DELETE' });
+    toast('Post deleted');
+    postModal.close();
+    await loadPosts();
+  } catch (e) { toast('Delete failed: ' + e.message, true); }
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/posts/?id=${id}`, { method: 'DELETE' });
+    toast('Post deleted');
+    await loadPosts();
+  } catch (e) { toast('Delete failed: ' + e.message, true); }
+}
+
 // ── Init — fetches run in parallel; each handles its own errors ─────────
 loadProjects();
 loadSettings();
 loadSkills();
 loadResume();
 loadAudit();
+loadPosts();
 </script>
 </body>
 </html>

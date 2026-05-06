@@ -1,3 +1,17 @@
+<?php
+// Hide the Writing nav link until at least one post is actually published —
+// avoids sending visitors to an empty page.
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/db.php';
+$has_writing = false;
+try {
+    $has_writing = (bool) db()->query(
+        "SELECT 1 FROM posts WHERE is_published = 1 AND published_at IS NOT NULL AND published_at <= NOW() LIMIT 1"
+    )->fetchColumn();
+} catch (Throwable $e) {
+    // posts table may not exist yet (pre-migration) — treat as no posts.
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +23,8 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="/fonts/syne.css" rel="stylesheet">
 <style>
   :root {
     --bg: #0d0d0d; --bg2: #141414; --bg3: #1a1a1a;
@@ -217,6 +232,7 @@
   <div class="nav-links" id="nav-links">
     <a href="#about">About</a>
     <a href="#projects">Projects</a>
+    <?php if ($has_writing): ?><a href="/writing/">Writing</a><?php endif; ?>
     <a href="#contact">Contact</a>
     <a id="nav-github" href="#" target="_blank" rel="noopener">GitHub</a>
   </div>

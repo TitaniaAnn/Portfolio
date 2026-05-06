@@ -5,7 +5,14 @@ RewriteBase /
 # 1. Map the root to public/index.php
 RewriteRule ^$ public/index.php [L]
 
-# 2. Map all other requests to the public folder
+# 2. Single writing post: /writing/<slug>/ → public/writing/post.php?slug=<slug>
+# Listed before the catch-all so /writing/feed.xml and /writing/ (which exist
+# as real files) still get served directly by the next rule.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^writing/([a-z0-9][a-z0-9-]*)/?$ public/writing/post.php?slug=$1 [QSA,L]
+
+# 3. Map all other requests to the public folder
 # (But only if the request isn't already for the public folder)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -17,6 +24,11 @@ RewriteRule ^(.*)$ public/$1 [L]
     Order allow,deny
     Deny from all
 </FilesMatch>
+
+# Deny access to backup snapshots — they may contain hardcoded secrets from
+# pre-.env days. .backup/ is gitignored so this only matters if the deploy
+# tool happens to sync it.
+RewriteRule ^\.backup(/|$) - [F,L]
 
 # Prevent directory browsing
 Options -Indexes

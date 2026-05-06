@@ -77,6 +77,32 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Writing posts (markdown blog/notes)
+CREATE TABLE IF NOT EXISTS posts (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    slug          VARCHAR(160) NOT NULL UNIQUE,
+    title         VARCHAR(255) NOT NULL,
+    excerpt       TEXT NULL,
+    body_markdown MEDIUMTEXT NOT NULL,
+    cover_image   VARCHAR(512) NULL,
+    tags          VARCHAR(512) NOT NULL DEFAULT '',
+    is_published  TINYINT(1) NOT NULL DEFAULT 0,
+    published_at  DATETIME NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_posts_pub (is_published, published_at)
+);
+
+-- Posts ↔ Projects link table
+CREATE TABLE IF NOT EXISTS post_projects (
+    post_id    INT NOT NULL,
+    project_id INT NOT NULL,
+    PRIMARY KEY (post_id, project_id),
+    FOREIGN KEY (post_id)    REFERENCES posts(id)    ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_post_projects_project (project_id)
+);
+
 -- Audit log (security-relevant events)
 CREATE TABLE IF NOT EXISTS audit_log (
     id         BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -34,6 +34,9 @@ function cors_headers(): void {
 }
 
 function get_json_body(): array {
-    $raw = file_get_contents('php://input');
-    return json_decode($raw, true) ?? [];
+    // `??` only coalesces null. json_decode also returns scalars for valid
+    // non-object bodies like `false` or `42`, which would violate the array
+    // return type and 500 every endpoint that uses this helper.
+    $decoded = json_decode((string) file_get_contents('php://input'), true);
+    return is_array($decoded) ? $decoded : [];
 }

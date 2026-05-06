@@ -120,13 +120,57 @@ $migrations = [
         'check'  => fn() => index_exists('project_images', 'idx_project_images_project'),
         'sql'    => "ALTER TABLE project_images ADD INDEX idx_project_images_project (project_id)",
     ],
+    [
+        'id'     => 'create_posts',
+        'label'  => 'Create posts table',
+        'detail' => 'Stores writing entries — title, slug, markdown body, tags, publish state.',
+        'check'  => fn() => table_exists('posts'),
+        'sql'    => "CREATE TABLE IF NOT EXISTS posts (
+            id            INT AUTO_INCREMENT PRIMARY KEY,
+            slug          VARCHAR(160) NOT NULL UNIQUE,
+            title         VARCHAR(255) NOT NULL,
+            excerpt       TEXT NULL,
+            body_markdown MEDIUMTEXT NOT NULL,
+            cover_image   VARCHAR(512) NULL,
+            tags          VARCHAR(512) NOT NULL DEFAULT '',
+            is_published  TINYINT(1) NOT NULL DEFAULT 0,
+            published_at  DATETIME NULL,
+            created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_posts_pub (is_published, published_at)
+        )",
+    ],
+    [
+        'id'     => 'create_post_projects',
+        'label'  => 'Create post_projects link table',
+        'detail' => 'Many-to-many link between writing posts and projects.',
+        'check'  => fn() => table_exists('post_projects'),
+        'sql'    => "CREATE TABLE IF NOT EXISTS post_projects (
+            post_id    INT NOT NULL,
+            project_id INT NOT NULL,
+            PRIMARY KEY (post_id, project_id),
+            FOREIGN KEY (post_id)    REFERENCES posts(id)    ON DELETE CASCADE,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            INDEX idx_post_projects_project (project_id)
+        )",
+    ],
 ];
+
+// CSRF token for the form. Issued before the POST handler runs so a
+// fabricated request can't slip past with an empty session token —
+// hash_equals('', '') returns true, which would otherwise be a bypass.
+session_start_secure();
+if (empty($_SESSION['csrf_form_token'])) {
+    $_SESSION['csrf_form_token'] = bin2hex(random_bytes(32));
+}
+$csrfFormToken = $_SESSION['csrf_form_token'];
 
 // ── Run pending migrations on POST ────────────────────────────────────────
 $run_results = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'run') {
-    if (!hash_equals($_SESSION['csrf_form_token'] ?? '', $_POST['csrf_form_token'] ?? '')) {
+    $supplied = $_POST['csrf_form_token'] ?? '';
+    if ($supplied === '' || !hash_equals($csrfFormToken, $supplied)) {
         http_response_code(403);
         die('CSRF token mismatch. Reload the page and try again.');
     }
@@ -155,13 +199,6 @@ unset($m);
 
 $pending_count = count(array_filter($migrations, fn($m) => !$m['applied']));
 $total         = count($migrations);
-
-// CSRF token for the form (renewed each render)
-session_start_secure();
-if (empty($_SESSION['csrf_form_token'])) {
-    $_SESSION['csrf_form_token'] = bin2hex(random_bytes(32));
-}
-$csrfFormToken = $_SESSION['csrf_form_token'];
 ?>
 <!DOCTYPE html>
 <html lang="en">

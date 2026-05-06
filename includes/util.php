@@ -32,8 +32,14 @@ function string_list($value, int $maxItems = 64): array {
 
 /**
  * Validate a URL submitted from the admin. Returns the trimmed URL on success
- * or null on empty / invalid / overlong input. Caps at 500 chars to fit the
- * VARCHAR(512) columns with room for trailing slashes and query params.
+ * or null on empty / invalid / overlong / non-http(s) input. Caps at 500
+ * chars to fit the VARCHAR(512) columns with room for query params.
+ *
+ * The scheme whitelist is defense-in-depth: stored values land in href and
+ * src attributes (project links, post cover images), so allowing only
+ * http(s) keeps anything weird out — `javascript:` and `data:` are already
+ * rejected by FILTER_VALIDATE_URL because they have no `://`, but ftp://,
+ * file://, gopher:// etc. would otherwise pass.
  */
 function clean_url(?string $url): ?string {
     if ($url === null) return null;
@@ -41,6 +47,8 @@ function clean_url(?string $url): ?string {
     if ($url === '') return null;
     if (strlen($url) > 500) return null;
     if (!filter_var($url, FILTER_VALIDATE_URL)) return null;
+    $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+    if ($scheme !== 'http' && $scheme !== 'https') return null;
     return $url;
 }
 
