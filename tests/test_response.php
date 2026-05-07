@@ -7,6 +7,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/harness.php';
+require_once __DIR__ . '/../includes/response.php';
 
 /**
  * Run a PHP snippet in a separate process and capture stdout. The snippet is
@@ -37,28 +38,24 @@ function run_php(string $snippet): string {
     }
 }
 
-T::group('get_json_body — parser fallback semantics', function () {
-    // get_json_body() decodes php://input, then `is_array($d) ? $d : []`.
-    // We can't stub php://input in CLI, so we exercise the same expression
-    // tree the function evaluates. The is_array check is the load-bearing
-    // bit: it stops scalar bodies (`false`, `42`, `"hi"`) from violating
-    // the array return type and 500-crashing every endpoint.
-    $decode = static function (string $raw): array {
-        $d = json_decode($raw, true);
-        return is_array($d) ? $d : [];
-    };
+T::group('parse_json_body — real parser, no subprocess needed', function () {
+    // get_json_body() is now a one-liner that hands the body to
+    // parse_json_body(). Test the parser directly so a regression where the
+    // two drift apart can't slip through (the previous lambda-mirror
+    // version of this test would not have caught it). php://input itself
+    // is just file_get_contents — not worth stubbing.
+    T::eq([],              parse_json_body(''),                 'empty body → []');
+    T::eq([],              parse_json_body('not json'),         'malformed → []');
+    T::eq([],              parse_json_body('null'),             'literal null → []');
+    T::eq(['a' => 1],      parse_json_body('{"a":1}'),          'object round-trips');
+    T::eq([1, 2, 3],       parse_json_body('[1,2,3]'),          'array round-trips');
 
-    T::eq([],              $decode(''),                 'empty body → []');
-    T::eq([],              $decode('not json'),         'malformed → []');
-    T::eq([],              $decode('null'),             'literal null → []');
-    T::eq(['a' => 1],      $decode('{"a":1}'),          'object round-trips');
-    T::eq([1, 2, 3],       $decode('[1,2,3]'),          'array round-trips');
-
-    // Scalar bodies that previously crashed the function now coalesce to [].
-    T::eq([],              $decode('false'),            'literal false → []');
-    T::eq([],              $decode('true'),             'literal true → []');
-    T::eq([],              $decode('42'),               'literal int → []');
-    T::eq([],              $decode('"hi"'),             'literal string → []');
+    // Scalar bodies. Without the is_array guard these would violate the
+    // array return type and 500 every caller.
+    T::eq([],              parse_json_body('false'),            'literal false → []');
+    T::eq([],              parse_json_body('true'),             'literal true → []');
+    T::eq([],              parse_json_body('42'),               'literal int → []');
+    T::eq([],              parse_json_body('"hi"'),             'literal string → []');
 });
 
 T::group('json_response', function () {

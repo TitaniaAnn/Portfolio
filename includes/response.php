@@ -34,9 +34,18 @@ function cors_headers(): void {
 }
 
 function get_json_body(): array {
-    // `??` only coalesces null. json_decode also returns scalars for valid
-    // non-object bodies like `false` or `42`, which would violate the array
-    // return type and 500 every endpoint that uses this helper.
-    $decoded = json_decode((string) file_get_contents('php://input'), true);
+    return parse_json_body((string) file_get_contents('php://input'));
+}
+
+/**
+ * Pure helper extracted from get_json_body() so unit tests can exercise the
+ * real parser without trying to stub php://input (which is empty in CLI
+ * regardless of stdin). Anything other than a JSON object/array — scalar,
+ * boolean, malformed — coalesces to []. The is_array check is load-bearing:
+ * `??` only catches null, so without it a body of `false` or `42` would
+ * violate the array return type and 500 every endpoint that calls in.
+ */
+function parse_json_body(string $raw): array {
+    $decoded = json_decode($raw, true);
     return is_array($decoded) ? $decoded : [];
 }
